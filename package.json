@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",
-    "bplist-parser": "^0.3.2"
+    "bplist-parser": "^0.3.2",
+    "lottie-react": "^2.4.1"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.1",

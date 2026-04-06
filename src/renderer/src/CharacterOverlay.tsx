@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import Lottie from 'lottie-react'
 
 interface NotificationData {
   sender: string
@@ -17,6 +18,19 @@ export const CharacterOverlay: React.FC = () => {
   const [notification, setNotification] = useState<NotificationData | null>(null)
   const [visible, setVisible] = useState(false)
   const [fading, setFading] = useState(false)
+  const [lottieData, setLottieData] = useState<object | null>(null)
+
+  useEffect(() => {
+    fetch('/character.json')
+      .then(res => {
+        if (res.ok) return res.json()
+        return null
+      })
+      .then(data => {
+        if (data) setLottieData(data)
+      })
+      .catch(() => {})
+  }, [])
 
   const showNotification = useCallback((data: NotificationData) => {
     setNotification(data)
@@ -42,8 +56,8 @@ export const CharacterOverlay: React.FC = () => {
   return (
     <div style={{
       display: 'flex',
-      alignItems: 'flex-end',
-      gap: 8,
+      flexDirection: 'column',
+      alignItems: 'center',
       padding: 16,
       opacity: fading ? 0 : 1,
       transition: 'opacity 0.5s ease-out',
@@ -51,7 +65,7 @@ export const CharacterOverlay: React.FC = () => {
     }}>
       {/* 吹き出し */}
       <div style={{
-        flex: 1,
+        width: '100%',
         background: 'rgba(255, 255, 255, 0.95)',
         borderRadius: 16,
         padding: '12px 16px',
@@ -78,34 +92,51 @@ export const CharacterOverlay: React.FC = () => {
         }}>
           {notification.body}
         </div>
-        {/* 吹き出しのしっぽ */}
+        {/* 吹き出しのしっぽ（下向き） */}
         <div style={{
           position: 'absolute',
-          right: -8,
-          bottom: 16,
+          left: '50%',
+          bottom: -10,
+          marginLeft: -8,
           width: 0,
           height: 0,
-          borderTop: '8px solid transparent',
-          borderBottom: '8px solid transparent',
-          borderLeft: '10px solid rgba(255, 255, 255, 0.95)'
+          borderLeft: '8px solid transparent',
+          borderRight: '8px solid transparent',
+          borderTop: '10px solid rgba(255, 255, 255, 0.95)'
         }} />
       </div>
 
-      {/* ダミーキャラクター（CSSアニメーション） */}
+      {/* キャラクター */}
       <div style={{
-        width: 64,
-        height: 64,
-        borderRadius: '50%',
-        background: 'linear-gradient(135deg, #6B4EE6, #9B6DFF)',
+        marginTop: 8,
+        width: 100,
+        height: 100,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 32,
-        flexShrink: 0,
-        animation: 'bounce 0.6s ease-in-out infinite alternate',
-        boxShadow: '0 4px 12px rgba(107, 78, 230, 0.4)'
+        justifyContent: 'center'
       }}>
-        🐱
+        {lottieData ? (
+          <Lottie
+            animationData={lottieData}
+            loop
+            style={{ width: 100, height: 100 }}
+          />
+        ) : (
+          <div style={{
+            width: 64,
+            height: 64,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #6B4EE6, #9B6DFF)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 32,
+            animation: 'bounce 0.6s ease-in-out infinite alternate',
+            boxShadow: '0 4px 12px rgba(107, 78, 230, 0.4)'
+          }}>
+            🐱
+          </div>
+        )}
       </div>
 
       <style>{`
