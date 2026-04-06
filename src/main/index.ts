@@ -85,14 +85,13 @@ app.whenReady().then(() => {
   overlayWindow = createOverlayWindow()
   createTray()
 
-  overlayWindow.webContents.on('did-finish-load', () => {
+  monitor = new NotificationMonitor()
+  monitor.on('started', () => {
     overlayWindow?.webContents.send('notification', {
       sender: 'Mascot Notifier',
       body: '起動しました！通知を監視しています。'
     })
   })
-
-  monitor = new NotificationMonitor()
   monitor.on('notification', (notification) => {
     overlayWindow?.webContents.send('notification', notification)
   })
@@ -100,8 +99,21 @@ app.whenReady().then(() => {
     const { response } = await dialog.showMessageBox({
       type: 'warning',
       title: 'フルディスクアクセスが必要です',
-      message: '通知の取得にはフルディスクアクセス権限が必要です。',
-      detail: 'システム設定 > プライバシーとセキュリティ > フルディスクアクセス で、このアプリを許可してください。\n\n設定後、アプリを再起動してください。',
+      message: 'macOS の通知を取得するために「フルディスクアクセス」権限が必要です。',
+      detail: [
+        '【必要な理由について】',
+        'このアプリは macOS の通知センターのデータベースを読み取ることで、各アプリの通知を検知しています。このデータベースへのアクセスに「フルディスクアクセス」が必要です。',
+        '',
+        '【安全性について】',
+        '• データベースは読み取り専用で開いており、変更・削除は一切行いません',
+        '• 通知データを外部に送信することはありません',
+        '• アプリはすべてローカルで動作します',
+        '',
+        '【設定手順】',
+        '1. 「システム設定を開く」をクリック',
+        '2. 「フルディスクアクセス」の一覧からこのアプリを許可',
+        '3. アプリを再起動'
+      ].join('\n'),
       buttons: ['システム設定を開く', '後で設定する'],
       defaultId: 0
     })

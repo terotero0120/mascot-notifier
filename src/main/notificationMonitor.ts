@@ -18,6 +18,7 @@ export class NotificationMonitor extends EventEmitter {
   private lastCheckTime: number = Date.now()
   private readonly pollIntervalMs = 3000
   private dbErrorLogged = false
+  private startedEmitted = false
   private dbPath: string | null = null
   private seenRecIds = new Set<number>()
 
@@ -67,6 +68,11 @@ export class NotificationMonitor extends EventEmitter {
       `).all(since) as Array<{ rec_id: number; data: Buffer; delivered_date: number }>
 
       db.close()
+
+      if (!this.startedEmitted) {
+        this.startedEmitted = true
+        this.emit('started')
+      }
 
       for (const row of rows) {
         if (this.seenRecIds.has(row.rec_id)) continue
