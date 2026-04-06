@@ -64,6 +64,13 @@ function createTray(): void {
     },
     { type: 'separator' },
     {
+      label: '通知設定を開く',
+      click: () => {
+        shell.openExternal('x-apple.systempreferences:com.apple.Notifications-Settings')
+      }
+    },
+    { type: 'separator' },
+    {
       label: '終了',
       click: () => {
         app.quit()
