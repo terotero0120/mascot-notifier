@@ -45,5 +45,4 @@ npm run build
 src/renderer/public/character.json
 ```
 
-- ファイルがない場合は CSS アニメーションのダミーキャラクター（🐱）が表示される
 - [LottieFiles.com](https://lottiefiles.com/) 等から `.json` 形式でダウンロード可能

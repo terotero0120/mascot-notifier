@@ -38,7 +38,7 @@
 | 言語 | TypeScript |
 | UI | React |
 | ビルドツール | electron-vite |
-| キャラクターアニメーション | Lottie (lottie-web) ※初期はCSSアニメーションのダミー |
+| キャラクターアニメーション | Lottie (lottie-web) |
 | DB 読み取り | better-sqlite3 |
 
 ---
@@ -79,8 +79,6 @@ Electron App
 | 最終形式 | Lottie (.json) |
 | 素材入手先 | LottieFiles.com など |
 | 作成ツール | Figma + プラグイン / After Effects / Rive |
-| 初期実装 | CSS アニメーションのダミーキャラクターで代替 |
-
 ---
 
 ## 開発ステップ

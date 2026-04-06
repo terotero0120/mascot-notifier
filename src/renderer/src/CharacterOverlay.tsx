@@ -22,13 +22,8 @@ export const CharacterOverlay: React.FC = () => {
 
   useEffect(() => {
     fetch('/character.json')
-      .then(res => {
-        if (res.ok) return res.json()
-        return null
-      })
-      .then(data => {
-        if (data) setLottieData(data)
-      })
+      .then(res => res.json())
+      .then(data => setLottieData(data))
       .catch(() => {})
   }, [])
 
@@ -115,36 +110,15 @@ export const CharacterOverlay: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        {lottieData ? (
+        {lottieData && (
           <Lottie
             animationData={lottieData}
             loop
             style={{ width: 100, height: 100 }}
           />
-        ) : (
-          <div style={{
-            width: 64,
-            height: 64,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #6B4EE6, #9B6DFF)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 32,
-            animation: 'bounce 0.6s ease-in-out infinite alternate',
-            boxShadow: '0 4px 12px rgba(107, 78, 230, 0.4)'
-          }}>
-            🐱
-          </div>
         )}
       </div>
 
-      <style>{`
-        @keyframes bounce {
-          from { transform: translateY(0); }
-          to { transform: translateY(-6px); }
-        }
-      `}</style>
     </div>
   )
 }
