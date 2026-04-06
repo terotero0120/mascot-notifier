@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, Tray, Menu, nativeImage } from 'electron'
+import { app, BrowserWindow, screen, Tray, Menu, nativeImage, dialog, shell } from 'electron'
 import path from 'path'
 import { NotificationMonitor } from './notificationMonitor'
 
@@ -78,9 +78,29 @@ app.whenReady().then(() => {
   overlayWindow = createOverlayWindow()
   createTray()
 
+  overlayWindow.webContents.on('did-finish-load', () => {
+    overlayWindow?.webContents.send('notification', {
+      sender: 'Mascot Notifier',
+      body: '起動しました！通知を監視しています。'
+    })
+  })
+
   monitor = new NotificationMonitor()
   monitor.on('notification', (notification) => {
     overlayWindow?.webContents.send('notification', notification)
+  })
+  monitor.on('permission-error', async () => {
+    const { response } = await dialog.showMessageBox({
+      type: 'warning',
+      title: 'フルディスクアクセスが必要です',
+      message: '通知の取得にはフルディスクアクセス権限が必要です。',
+      detail: 'システム設定 > プライバシーとセキュリティ > フルディスクアクセス で、このアプリを許可してください。\n\n設定後、アプリを再起動してください。',
+      buttons: ['システム設定を開く', '後で設定する'],
+      defaultId: 0
+    })
+    if (response === 0) {
+      shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles')
+    }
   })
   monitor.start()
 })

@@ -91,8 +91,11 @@ export class NotificationMonitor extends EventEmitter {
       }
     } catch (err) {
       if (!this.dbErrorLogged) {
-        console.error('NotificationMonitor poll error:', (err as Error).message)
-        console.error('Full Disk Access may be required. Grant it in System Settings > Privacy & Security > Full Disk Access')
+        const message = (err as Error).message
+        console.error('NotificationMonitor poll error:', message)
+        if (message.includes('SQLITE_CANTOPEN') || message.includes('unable to open database') || message.includes('directory does not exist')) {
+          this.emit('permission-error')
+        }
         this.dbErrorLogged = true
       }
     }
