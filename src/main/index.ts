@@ -79,9 +79,9 @@ function createSettingsWindow(): void {
 }
 
 function createTray(): void {
-  const icon = nativeImage.createEmpty()
+  const icon = nativeImage.createFromPath(path.join(__dirname, '../../resources/iconTemplate.png'))
+  icon.setTemplateImage(true)
   tray = new Tray(icon)
-  tray.setTitle('🐱')
   tray.setToolTip('Mascot Notifier')
 
   const contextMenu = Menu.buildFromTemplate([
