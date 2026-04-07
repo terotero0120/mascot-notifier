@@ -1,30 +1,40 @@
-import { app, BrowserWindow, screen, Tray, Menu, nativeImage, dialog, shell, ipcMain } from 'electron'
-import path from 'path'
-import { NotificationMonitor } from './notificationMonitor'
-import { loadSettings, saveSettings } from './settings'
+import path from 'node:path';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  nativeImage,
+  screen,
+  shell,
+  Tray,
+} from 'electron';
+import { NotificationMonitor } from './notificationMonitor';
+import { loadSettings, saveSettings } from './settings';
 
-let overlayWindow: BrowserWindow | null = null
-let settingsWindow: BrowserWindow | null = null
-let tray: Tray | null = null
-let monitor: NotificationMonitor | null = null
+let overlayWindow: BrowserWindow | null = null;
+let settingsWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let monitor: NotificationMonitor | null = null;
 
-const preloadPath = path.join(__dirname, '../preload/index.js')
-const rendererHtmlPath = path.join(__dirname, '../renderer/index.html')
+const preloadPath = path.join(__dirname, '../preload/index.js');
+const rendererHtmlPath = path.join(__dirname, '../renderer/index.html');
 
 function loadRenderer(win: BrowserWindow, hash?: string): void {
   if (process.env.ELECTRON_RENDERER_URL) {
-    win.loadURL(`${process.env.ELECTRON_RENDERER_URL}${hash ? '#' + hash : ''}`)
+    win.loadURL(`${process.env.ELECTRON_RENDERER_URL}${hash ? `#${hash}` : ''}`);
   } else {
-    win.loadFile(rendererHtmlPath, hash ? { hash } : undefined)
+    win.loadFile(rendererHtmlPath, hash ? { hash } : undefined);
   }
 }
 
 function createOverlayWindow(): BrowserWindow {
-  const display = screen.getPrimaryDisplay()
-  const { width } = display.workAreaSize
+  const display = screen.getPrimaryDisplay();
+  const { width } = display.workAreaSize;
 
-  const winWidth = 300
-  const winHeight = 280
+  const winWidth = 300;
+  const winHeight = 280;
 
   const win = new BrowserWindow({
     width: winWidth,
@@ -41,23 +51,23 @@ function createOverlayWindow(): BrowserWindow {
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
-      nodeIntegration: false
-    }
-  })
+      nodeIntegration: false,
+    },
+  });
 
-  win.setIgnoreMouseEvents(true, { forward: true })
-  win.setAlwaysOnTop(true, 'screen-saver')
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  win.setIgnoreMouseEvents(true, { forward: true });
+  win.setAlwaysOnTop(true, 'screen-saver');
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
-  loadRenderer(win)
+  loadRenderer(win);
 
-  return win
+  return win;
 }
 
 function createSettingsWindow(): void {
   if (settingsWindow) {
-    settingsWindow.focus()
-    return
+    settingsWindow.focus();
+    return;
   }
 
   settingsWindow = new BrowserWindow({
@@ -67,22 +77,22 @@ function createSettingsWindow(): void {
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
-      nodeIntegration: false
-    }
-  })
+      nodeIntegration: false,
+    },
+  });
 
-  loadRenderer(settingsWindow, 'settings')
+  loadRenderer(settingsWindow, 'settings');
 
   settingsWindow.on('closed', () => {
-    settingsWindow = null
-  })
+    settingsWindow = null;
+  });
 }
 
 function createTray(): void {
-  const icon = nativeImage.createFromPath(path.join(__dirname, '../../resources/iconTemplate.png'))
-  icon.setTemplateImage(true)
-  tray = new Tray(icon)
-  tray.setToolTip('Mascot Notifier')
+  const icon = nativeImage.createFromPath(path.join(__dirname, '../../resources/iconTemplate.png'));
+  icon.setTemplateImage(true);
+  tray = new Tray(icon);
+  tray.setToolTip('Mascot Notifier');
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -90,53 +100,53 @@ function createTray(): void {
       click: () => {
         overlayWindow?.webContents.send('notification', {
           sender: 'テスト送信者',
-          body: 'これはテスト通知です！'
-        })
-      }
+          body: 'これはテスト通知です！',
+        });
+      },
     },
     { type: 'separator' },
     {
       label: '設定',
-      click: () => createSettingsWindow()
+      click: () => createSettingsWindow(),
     },
     {
       label: '通知設定を開く',
       click: () => {
-        shell.openExternal('x-apple.systempreferences:com.apple.Notifications-Settings')
-      }
+        shell.openExternal('x-apple.systempreferences:com.apple.Notifications-Settings');
+      },
     },
     { type: 'separator' },
     {
       label: '終了',
       click: () => {
-        app.quit()
-      }
-    }
-  ])
+        app.quit();
+      },
+    },
+  ]);
 
-  tray.setContextMenu(contextMenu)
+  tray.setContextMenu(contextMenu);
 }
 
 app.whenReady().then(() => {
-  overlayWindow = createOverlayWindow()
-  createTray()
+  overlayWindow = createOverlayWindow();
+  createTray();
 
-  ipcMain.handle('get-settings', () => loadSettings())
+  ipcMain.handle('get-settings', () => loadSettings());
   ipcMain.handle('save-settings', (_event, settings) => {
-    saveSettings(settings)
-    overlayWindow?.webContents.send('settings-changed', settings)
-  })
+    saveSettings(settings);
+    overlayWindow?.webContents.send('settings-changed', settings);
+  });
 
-  monitor = new NotificationMonitor()
+  monitor = new NotificationMonitor();
   monitor.on('started', () => {
     overlayWindow?.webContents.send('notification', {
       sender: 'Mascot Notifier',
-      body: '起動しました！通知を監視しています。'
-    })
-  })
+      body: '起動しました！通知を監視しています。',
+    });
+  });
   monitor.on('notification', (notification) => {
-    overlayWindow?.webContents.send('notification', notification)
-  })
+    overlayWindow?.webContents.send('notification', notification);
+  });
   monitor.on('permission-error', async () => {
     const { response } = await dialog.showMessageBox({
       type: 'warning',
@@ -154,22 +164,24 @@ app.whenReady().then(() => {
         '【設定手順】',
         '1. 「システム設定を開く」をクリック',
         '2. 「フルディスクアクセス」の一覧からこのアプリを許可',
-        '3. アプリを再起動'
+        '3. アプリを再起動',
       ].join('\n'),
       buttons: ['システム設定を開く', '後で設定する'],
-      defaultId: 0
-    })
+      defaultId: 0,
+    });
     if (response === 0) {
-      shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles')
+      shell.openExternal(
+        'x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles',
+      );
     }
-  })
-  monitor.start()
-})
+  });
+  monitor.start();
+});
 
 app.on('window-all-closed', () => {
   // keep running
-})
+});
 
 app.on('before-quit', () => {
-  monitor?.stop()
-})
+  monitor?.stop();
+});

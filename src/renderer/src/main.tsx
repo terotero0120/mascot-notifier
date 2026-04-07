@@ -1,12 +1,12 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { CharacterOverlay } from './CharacterOverlay'
-import { SettingsApp } from './SettingsApp'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { CharacterOverlay } from './CharacterOverlay';
+import { SettingsApp } from './SettingsApp';
 
-const isSettings = window.location.hash === '#settings'
+const isSettings = window.location.hash === '#settings';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    {isSettings ? <SettingsApp /> : <CharacterOverlay />}
-  </React.StrictMode>
-)
+const root = document.getElementById('root');
+if (!root) throw new Error('Root element not found');
+ReactDOM.createRoot(root).render(
+  <React.StrictMode>{isSettings ? <SettingsApp /> : <CharacterOverlay />}</React.StrictMode>,
+);

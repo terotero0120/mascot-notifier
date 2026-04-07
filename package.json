@@ -7,7 +7,10 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "postinstall": "electron-rebuild -f -w better-sqlite3"
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "lint": "biome check src/",
+    "lint:fix": "biome check --write src/",
+    "format": "biome format --write src/"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",
@@ -15,6 +18,7 @@
     "lottie-react": "^2.4.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.10",
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
     "@types/better-sqlite3": "^7.6.12",

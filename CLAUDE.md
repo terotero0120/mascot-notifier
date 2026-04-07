@@ -12,10 +12,13 @@ macOSの通知センターを監視し、透明なオーバーレイウィンド
 npm run dev       # ホットリロード付き開発サーバー
 npm run build     # プロダクションビルド（./out/ に出力）
 npm run preview   # ビルド済みアプリのプレビュー
+npm run lint      # Biomeによるlint + formatチェック
+npm run lint:fix  # lint + format自動修正
+npm run format    # フォーマットのみ自動修正
 npm install       # 依存関係インストール + ネイティブモジュール再ビルド（better-sqlite3）
 ```
 
-テスト・リントのコマンドは未設定。
+テストコマンドは未設定。
 
 ## アーキテクチャ
 
