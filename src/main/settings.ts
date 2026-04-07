@@ -24,7 +24,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-function normalizeSettings(settings: unknown): AppSettings {
+export function validateSettings(settings: unknown): AppSettings {
   if (!isObject(settings)) return { ...DEFAULT_SETTINGS }
 
   const normalized: AppSettings = { ...DEFAULT_SETTINGS }
@@ -53,14 +53,12 @@ export function loadSettings(): AppSettings {
   try {
     const raw = fs.readFileSync(settingsPath(), 'utf-8')
     const parsed = JSON.parse(raw)
-    return normalizeSettings(parsed)
+    return validateSettings(parsed)
   } catch {
     return { ...DEFAULT_SETTINGS }
   }
 }
 
-export function saveSettings(settings: unknown): AppSettings {
-  const normalized = normalizeSettings(settings)
-  fs.writeFileSync(settingsPath(), JSON.stringify(normalized, null, 2), 'utf-8')
-  return normalized
+export function saveSettings(settings: AppSettings): void {
+  fs.writeFileSync(settingsPath(), JSON.stringify(validateSettings(settings), null, 2), 'utf-8')
 }

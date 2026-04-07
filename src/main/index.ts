@@ -1,7 +1,7 @@
 import { app, BrowserWindow, screen, Tray, Menu, nativeImage, dialog, shell, ipcMain } from 'electron'
 import path from 'path'
 import { NotificationMonitor } from './notificationMonitor'
-import { loadSettings, saveSettings } from './settings'
+import { loadSettings, saveSettings, validateSettings } from './settings'
 
 let overlayWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
@@ -123,7 +123,8 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-settings', () => loadSettings())
   ipcMain.handle('save-settings', (_event, settings) => {
-    const normalizedSettings = saveSettings(settings)
+    const normalizedSettings = validateSettings(settings)
+    saveSettings(normalizedSettings)
     overlayWindow?.webContents.send('settings-changed', normalizedSettings)
   })
 
