@@ -123,8 +123,8 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-settings', () => loadSettings())
   ipcMain.handle('save-settings', (_event, settings) => {
-    saveSettings(settings)
-    overlayWindow?.webContents.send('settings-changed', settings)
+    const normalizedSettings = saveSettings(settings)
+    overlayWindow?.webContents.send('settings-changed', normalizedSettings)
   })
 
   monitor = new NotificationMonitor()
