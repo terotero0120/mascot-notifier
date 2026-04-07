@@ -29,8 +29,11 @@ function normalizeSettings(settings: unknown): AppSettings {
 
   const normalized: AppSettings = { ...DEFAULT_SETTINGS }
 
-  if (typeof settings.characterFile === 'string' && ALLOWED_CHARACTER_FILES.has(settings.characterFile)) {
-    normalized.characterFile = settings.characterFile
+  if (typeof settings.characterFile === 'string') {
+    const characterFile = settings.characterFile.trim()
+    if (ALLOWED_CHARACTER_FILES.has(characterFile)) {
+      normalized.characterFile = characterFile
+    }
   }
 
   if (
