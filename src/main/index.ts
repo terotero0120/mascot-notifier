@@ -1,10 +1,23 @@
-import { app, BrowserWindow, screen, Tray, Menu, nativeImage, dialog, shell } from 'electron'
+import { app, BrowserWindow, screen, Tray, Menu, nativeImage, dialog, shell, ipcMain } from 'electron'
 import path from 'path'
 import { NotificationMonitor } from './notificationMonitor'
+import { loadSettings, saveSettings } from './settings'
 
 let overlayWindow: BrowserWindow | null = null
+let settingsWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let monitor: NotificationMonitor | null = null
+
+const preloadPath = path.join(__dirname, '../preload/index.js')
+const rendererHtmlPath = path.join(__dirname, '../renderer/index.html')
+
+function loadRenderer(win: BrowserWindow, hash?: string): void {
+  if (process.env.ELECTRON_RENDERER_URL) {
+    win.loadURL(`${process.env.ELECTRON_RENDERER_URL}${hash ? '#' + hash : ''}`)
+  } else {
+    win.loadFile(rendererHtmlPath, hash ? { hash } : undefined)
+  }
+}
 
 function createOverlayWindow(): BrowserWindow {
   const display = screen.getPrimaryDisplay()
@@ -26,7 +39,7 @@ function createOverlayWindow(): BrowserWindow {
     hasShadow: false,
     focusable: false,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -36,17 +49,36 @@ function createOverlayWindow(): BrowserWindow {
   win.setAlwaysOnTop(true, 'screen-saver')
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
 
-  if (process.env.ELECTRON_RENDERER_URL) {
-    win.loadURL(process.env.ELECTRON_RENDERER_URL)
-  } else {
-    win.loadFile(path.join(__dirname, '../renderer/index.html'))
-  }
+  loadRenderer(win)
 
   return win
 }
 
+function createSettingsWindow(): void {
+  if (settingsWindow) {
+    settingsWindow.focus()
+    return
+  }
+
+  settingsWindow = new BrowserWindow({
+    width: 400,
+    height: 360,
+    resizable: false,
+    webPreferences: {
+      preload: preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+
+  loadRenderer(settingsWindow, 'settings')
+
+  settingsWindow.on('closed', () => {
+    settingsWindow = null
+  })
+}
+
 function createTray(): void {
-  // Create a 1x1 transparent PNG as placeholder (macOS shows title text)
   const icon = nativeImage.createEmpty()
   tray = new Tray(icon)
   tray.setTitle('🐱')
@@ -63,6 +95,10 @@ function createTray(): void {
       }
     },
     { type: 'separator' },
+    {
+      label: '設定',
+      click: () => createSettingsWindow()
+    },
     {
       label: '通知設定を開く',
       click: () => {
@@ -84,6 +120,12 @@ function createTray(): void {
 app.whenReady().then(() => {
   overlayWindow = createOverlayWindow()
   createTray()
+
+  ipcMain.handle('get-settings', () => loadSettings())
+  ipcMain.handle('save-settings', (_event, settings) => {
+    saveSettings(settings)
+    overlayWindow?.webContents.send('settings-changed', settings)
+  })
 
   monitor = new NotificationMonitor()
   monitor.on('started', () => {

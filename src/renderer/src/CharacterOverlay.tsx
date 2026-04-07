@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Lottie from 'lottie-react'
 
 interface NotificationData {
@@ -6,44 +6,60 @@ interface NotificationData {
   body: string
 }
 
-declare global {
-  interface Window {
-    electronAPI: {
-      onNotification: (callback: (data: NotificationData) => void) => void
-    }
-  }
-}
-
 export const CharacterOverlay: React.FC = () => {
   const [notification, setNotification] = useState<NotificationData | null>(null)
   const [visible, setVisible] = useState(false)
   const [fading, setFading] = useState(false)
   const [lottieData, setLottieData] = useState<object | null>(null)
+  const [characterFile, setCharacterFile] = useState('dance.json')
+  const displayDurationRef = useRef(5000)
+  const displayTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout>>()
+
+  const applySettings = (settings: AppSettings) => {
+    setCharacterFile(settings.characterFile)
+    displayDurationRef.current = settings.displayDuration
+  }
 
   useEffect(() => {
-    fetch('/character.json')
-      .then(res => res.json())
-      .then(data => setLottieData(data))
-      .catch(() => {})
+    window.electronAPI.getSettings().then(applySettings)
+    return window.electronAPI.onSettingsChanged(applySettings)
   }, [])
 
+  useEffect(() => {
+    let stale = false
+    fetch(`/${characterFile}`)
+      .then(res => res.json())
+      .then(data => { if (!stale) setLottieData(data) })
+      .catch(() => {})
+    return () => { stale = true }
+  }, [characterFile])
+
   const showNotification = useCallback((data: NotificationData) => {
+    clearTimeout(displayTimerRef.current)
+    clearTimeout(fadeTimerRef.current)
+
     setNotification(data)
     setVisible(true)
     setFading(false)
 
-    setTimeout(() => {
+    displayTimerRef.current = setTimeout(() => {
       setFading(true)
-      setTimeout(() => {
+      fadeTimerRef.current = setTimeout(() => {
         setVisible(false)
         setFading(false)
         setNotification(null)
       }, 500)
-    }, 5000)
+    }, displayDurationRef.current)
   }, [])
 
   useEffect(() => {
-    window.electronAPI.onNotification(showNotification)
+    const cleanup = window.electronAPI.onNotification(showNotification)
+    return () => {
+      cleanup()
+      clearTimeout(displayTimerRef.current)
+      clearTimeout(fadeTimerRef.current)
+    }
   }, [showNotification])
 
   if (!visible || !notification) return null
