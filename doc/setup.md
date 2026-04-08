@@ -3,7 +3,7 @@
 ## 前提条件
 
 - Node.js v20 以上
-- macOS（現時点で macOS のみ対応）
+- macOS または Windows
 
 ## インストール
 
@@ -22,8 +22,23 @@ npm run dev
 ## ビルド
 
 ```bash
-npm run build
+npm run build        # Vite ビルドのみ
+npm run dist:mac     # macOS 配布用 (.dmg)
+npm run dist:win     # Windows 配布用 (.exe, NSIS インストーラー)
 ```
+
+### Windows 向けクロスビルド（macOS から）
+
+`npm run dist:win` は以下を自動的に行う：
+
+1. `electron-vite build` でアプリをビルド
+2. `prebuild-install` で Windows arm64 用の `better-sqlite3` プリビルドバイナリをダウンロード
+3. `electron-builder --win` でパッケージング（ネイティブモジュールの自動リビルドはスキップ）
+4. ビルド後、macOS 用の `better-sqlite3` バイナリを復元
+
+出力先: `dist/Mascot Notifier Setup x.x.x.exe`
+
+> 現在のスクリプトは arm64 をターゲットにしている。x64 向けにビルドする場合はスクリプト内の `--arch arm64` を `--arch x64` に変更する。
 
 ## macOS フルディスクアクセスの設定
 
@@ -31,11 +46,17 @@ npm run build
 
 1. `システム設定` > `プライバシーとセキュリティ` > `フルディスクアクセス`
 2. 以下を追加して許可：
-   - 開発時：使用しているターミナルアプリ（Terminal.app / cmux 等）
+   - 開発時：使用しているターミナルアプリ（Terminal.app / iTerm2 等）
    - 開発時：`node_modules/electron/dist/Electron.app`
 3. 追加後、ターミナルと Electron を再起動
 
 権限がない場合、アプリ起動時にダイアログで設定を案内する。
+
+## Windows の通知アクセス
+
+Windows では特別な権限設定は不要。`wpndatabase.db` はユーザーディレクトリ内にあり、通常のアプリから読み取り可能。
+
+通知が検出されない場合は、対象アプリの通知がWindowsの通知システムを経由しているか確認する（ブラウザのWeb通知はデスクトップアプリ/PWA 経由でないと検出されない場合がある）。
 
 ## macOS 通知バナーの無効化（推奨）
 
@@ -53,7 +74,21 @@ npm run build
 キャラクターアニメーション用の Lottie JSON ファイルを以下に配置：
 
 ```
-src/renderer/public/character.json
+src/renderer/public/<name>.json
 ```
 
+設定画面からファイルを選択可能。
+
 - [LottieFiles.com](https://lottiefiles.com/) 等から `.json` 形式でダウンロード可能
+
+## ログの確認
+
+Windows ではアプリログが自動的にファイルに出力される。macOS では環境変数 `LOG_TO_FILE=1` を設定すると有効になる。
+
+```
+# Windows
+%APPDATA%\mascot-notifier\app.log
+
+# macOS (LOG_TO_FILE=1 設定時)
+~/Library/Application Support/mascot-notifier/app.log
+```

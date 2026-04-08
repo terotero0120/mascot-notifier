@@ -6,7 +6,13 @@
 - Ventura で実際にパスが変更された実績あり（`Application Support` → `Group Containers`）
 - OS アップデート後に動作しなくなった場合は、DB パスとスキーマの確認が必要
 
-## フルディスクアクセス
+## Windows 通知 DB への依存
+
+- `wpndatabase.db` は Microsoft の非公開内部 DB であり、Windows のアップデートでスキーマが変更される可能性がある
+- `Notification` テーブルの `Id`, `ArrivalTime`, `Payload`, `Type` カラムと `NotificationHandler` テーブルの `RecordId`, `PrimaryId` カラムに依存
+- ブラウザの Web Notifications API 経由の通知は、デスクトップアプリ（PWA含む）から送信された場合のみ検出可能。ブラウザ内の通知は検出されない
+
+## フルディスクアクセス（macOS）
 
 - ユーザーに「フルディスクアクセス」を要求する必要がある
 - App Store 配布ではフルディスクアクセス前提のアプリは審査で弾かれる可能性が高い
@@ -16,12 +22,20 @@
 
 - 3 秒間隔のポーリングのため、通知の表示に最大 3 秒の遅延がある
 - バッテリー消費への影響あり（ただしDBの読み取りのみなので軽微）
+- 毎回DBを開閉するため若干のオーバーヘッドがあるが、システム所有のDBへのロック競合を避けるための意図的な設計
 
 ## eval('require') の使用
 
 - `better-sqlite3` と `bplist-parser` のロードに `eval('require')` を使用
 - ビルド時に Vite から警告が出るが、electron-vite の `ssr.noExternal: true` 強制を回避するための意図的な使用
+- `notificationMonitor.ts` でもプラットフォーム別モジュールの遅延読み込みに使用
 - セキュリティ上のリスクは低い（ハードコードされたモジュール名のみ使用）
+
+## Windows 向けクロスビルド
+
+- macOS から `npm run dist:win` でクロスビルド可能だが、`better-sqlite3` のネイティブバイナリは `prebuild-install` で事前ダウンロードが必要
+- electron-builder の `@electron/rebuild` はホストプラットフォーム向けにしかリビルドできないため、`-c.npmRebuild=false` で無効化している
+- ビルドスクリプト内の `--arch arm64` はハードコードされているため、x64 向けビルドには手動修正が必要
 
 ## OS 通知との共存（二重表示）
 
