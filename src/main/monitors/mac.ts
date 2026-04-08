@@ -3,7 +3,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { BaseNotificationMonitor } from './base';
 
-// Use eval('require') to bypass Vite/Rollup bundling for native modules
 // eslint-disable-next-line no-eval
 const nativeRequire = eval('require') as NodeRequire;
 const Database = nativeRequire('better-sqlite3') as typeof import('better-sqlite3');
@@ -13,10 +12,7 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private lastCheckTime: number = Date.now();
   private readonly pollIntervalMs = 3000;
-  private dbErrorLogged = false;
-  private startedEmitted = false;
   private dbPath: string | null = null;
-  private seenRecIds = new Set<number>();
 
   start(): void {
     const newPath = path.join(
@@ -48,27 +44,24 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
     try {
       const db = new Database(this.dbPath, { readonly: true, fileMustExist: true });
 
-      // macOS Core Data timestamp epoch: 2001-01-01 (978307200 seconds from Unix epoch)
+      // Core Data epoch: 2001-01-01 is 978307200 seconds after Unix epoch
       const since = this.lastCheckTime / 1000 - 978307200;
       const rows = db
         .prepare(`
-        SELECT rec.rec_id, rec.data, rec.delivered_date
-        FROM record AS rec
-        WHERE rec.delivered_date > ?
-        ORDER BY rec.delivered_date ASC
-      `)
+          SELECT rec.rec_id, rec.data, rec.delivered_date
+          FROM record AS rec
+          WHERE rec.delivered_date > ?
+          ORDER BY rec.delivered_date ASC
+        `)
         .all(since) as Array<{ rec_id: number; data: Buffer; delivered_date: number }>;
 
       db.close();
 
-      if (!this.startedEmitted) {
-        this.startedEmitted = true;
-        this.emit('started');
-      }
+      this.emitStartedOnce();
 
       for (const row of rows) {
-        if (this.seenRecIds.has(row.rec_id)) continue;
-        this.seenRecIds.add(row.rec_id);
+        if (this.seenIds.has(row.rec_id)) continue;
+        this.seenIds.add(row.rec_id);
 
         const notification = this.parseNotificationData(row.data);
         if (notification) {
@@ -82,23 +75,16 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
         this.lastCheckTime = (lastRow.delivered_date + 978307200) * 1000;
       }
 
-      // Prevent seenRecIds from growing unbounded
-      if (this.seenRecIds.size > 500) {
-        const arr = [...this.seenRecIds];
-        this.seenRecIds = new Set(arr.slice(-200));
-      }
+      this.trimSeenCache();
     } catch (err) {
-      if (!this.dbErrorLogged) {
-        const message = (err as Error).message;
-        console.error('MacNotificationMonitor poll error:', message);
-        if (
-          message.includes('SQLITE_CANTOPEN') ||
-          message.includes('unable to open database') ||
-          message.includes('directory does not exist')
-        ) {
-          this.emit('permission-error');
-        }
-        this.dbErrorLogged = true;
+      const message = (err as Error).message;
+      console.error('MacNotificationMonitor poll error:', message);
+      if (
+        message.includes('SQLITE_CANTOPEN') ||
+        message.includes('unable to open database') ||
+        message.includes('directory does not exist')
+      ) {
+        this.emitPermissionErrorOnce();
       }
     }
   }

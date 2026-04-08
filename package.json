@@ -10,7 +10,44 @@
     "postinstall": "electron-rebuild -f -w better-sqlite3",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
-    "format": "biome format --write src/"
+    "format": "biome format --write src/",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && cd node_modules/better-sqlite3 && npx prebuild-install --platform win32 --arch arm64 --runtime electron --target 33.4.11 && cd ../.. && electron-builder --win -c.npmRebuild=false; cd node_modules/better-sqlite3 && npx prebuild-install --runtime electron --target 33.4.11"
+  },
+  "build": {
+    "appId": "com.mascot-notifier.app",
+    "productName": "Mascot Notifier",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*",
+      "node_modules/**/*",
+      "!node_modules/.cache",
+      "package.json"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "resources/icon-win.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
+    },
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources"
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ]
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",
@@ -26,6 +63,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.1",
+    "electron-builder": "^26.8.1",
     "electron-rebuild": "^3.2.9",
     "electron-vite": "^4.0.1",
     "react": "^19.0.0",

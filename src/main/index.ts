@@ -1,4 +1,6 @@
+import fs from 'node:fs';
 import path from 'node:path';
+import { inspect } from 'node:util';
 import {
   app,
   BrowserWindow,
@@ -10,13 +12,37 @@ import {
   shell,
   Tray,
 } from 'electron';
-import { createNotificationMonitor } from './notificationMonitor';
+
+// File logging (active on Windows or when LOG_TO_FILE env is set)
+let logStream: fs.WriteStream | null = null;
+if (process.platform === 'win32' || process.env.LOG_TO_FILE) {
+  const logPath = path.join(app.getPath('userData'), 'app.log');
+  const stream = fs.createWriteStream(logPath, { flags: 'a' });
+  logStream = stream;
+  const timestamp = () => new Date().toISOString();
+  const serialize = (args: unknown[]) =>
+    args.map((a) => (typeof a === 'string' ? a : inspect(a))).join(' ');
+  for (const [method, label] of [
+    ['log', 'LOG  '],
+    ['warn', 'WARN '],
+    ['error', 'ERROR'],
+  ] as const) {
+    const orig = console[method].bind(console);
+    console[method] = (...args: unknown[]) => {
+      orig(...args);
+      stream.write(`[${timestamp()}] ${label} ${serialize(args)}\n`);
+    };
+  }
+  console.log('Log file:', logPath);
+}
+
+import { type BaseNotificationMonitor, createNotificationMonitor } from './notificationMonitor';
 import { loadSettings, saveSettings } from './settings';
 
 let overlayWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
-let monitor: ReturnType<typeof createNotificationMonitor> | null = null;
+let monitor: BaseNotificationMonitor | null = null;
 
 const preloadPath = path.join(__dirname, '../preload/index.js');
 const rendererHtmlPath = path.join(__dirname, '../renderer/index.html');
@@ -91,8 +117,11 @@ function createSettingsWindow(): void {
 }
 
 function createTray(): void {
-  const icon = nativeImage.createFromPath(path.join(__dirname, '../../resources/iconTemplate.png'));
-  icon.setTemplateImage(true);
+  const iconFile = process.platform === 'win32' ? 'icon-win.png' : 'iconTemplate.png';
+  const icon = nativeImage.createFromPath(path.join(__dirname, '../../resources', iconFile));
+  if (process.platform === 'darwin') {
+    icon.setTemplateImage(true);
+  }
   tray = new Tray(icon);
   tray.setToolTip('Mascot Notifier');
 
@@ -210,4 +239,5 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   monitor?.stop();
+  logStream?.end();
 });
