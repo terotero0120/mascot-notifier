@@ -29,7 +29,7 @@ export const CharacterOverlay: React.FC = () => {
 
   useEffect(() => {
     let stale = false;
-    fetch(`/${characterFile}`)
+    fetch(`./${characterFile}`)
       .then((res) => res.json())
       .then((data) => {
         if (!stale) setLottieData(data);

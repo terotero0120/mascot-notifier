@@ -1,4 +1,6 @@
+import fs from 'node:fs';
 import path from 'node:path';
+import { inspect } from 'node:util';
 import {
   app,
   BrowserWindow,
@@ -10,13 +12,61 @@ import {
   shell,
   Tray,
 } from 'electron';
-import { NotificationMonitor } from './notificationMonitor';
+
+// File logging (active on Windows or when LOG_TO_FILE env is set)
+let logStream: fs.WriteStream | null = null;
+
+function initFileLogging(): void {
+  if (!(process.platform === 'win32' || process.env.LOG_TO_FILE)) return;
+
+  try {
+    const userDataPath = app.getPath('userData');
+    fs.mkdirSync(userDataPath, { recursive: true });
+    const logPath = path.join(userDataPath, 'app.log');
+    const stream = fs.createWriteStream(logPath, { flags: 'a' });
+    logStream = stream;
+
+    stream.on('error', (err) => {
+      console.error('File logging disabled:', err);
+      logStream = null;
+    });
+
+    const timestamp = () => new Date().toISOString();
+    const serialize = (args: unknown[]) =>
+      args.map((a) => (typeof a === 'string' ? a : inspect(a))).join(' ');
+    for (const [method, label] of [
+      ['log', 'LOG  '],
+      ['warn', 'WARN '],
+      ['error', 'ERROR'],
+    ] as const) {
+      const orig = console[method].bind(console);
+      console[method] = (...args: unknown[]) => {
+        orig(...args);
+        if (logStream) {
+          logStream.write(`[${timestamp()}] ${label} ${serialize(args)}\n`);
+        }
+      };
+    }
+    console.log('Log file:', logPath);
+  } catch (err) {
+    console.error('Failed to initialize file logging:', err);
+    logStream = null;
+  }
+}
+
+if (app.isReady()) {
+  initFileLogging();
+} else {
+  app.whenReady().then(initFileLogging);
+}
+
+import { type BaseNotificationMonitor, createNotificationMonitor } from './notificationMonitor';
 import { loadSettings, saveSettings } from './settings';
 
 let overlayWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
-let monitor: NotificationMonitor | null = null;
+let monitor: BaseNotificationMonitor | null = null;
 
 const preloadPath = path.join(__dirname, '../preload/index.js');
 const rendererHtmlPath = path.join(__dirname, '../renderer/index.html');
@@ -57,7 +107,9 @@ function createOverlayWindow(): BrowserWindow {
 
   win.setIgnoreMouseEvents(true, { forward: true });
   win.setAlwaysOnTop(true, 'screen-saver');
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  if (process.platform === 'darwin') {
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
 
   loadRenderer(win);
 
@@ -89,8 +141,11 @@ function createSettingsWindow(): void {
 }
 
 function createTray(): void {
-  const icon = nativeImage.createFromPath(path.join(__dirname, '../../resources/iconTemplate.png'));
-  icon.setTemplateImage(true);
+  const iconFile = process.platform === 'win32' ? 'icon-win.png' : 'iconTemplate.png';
+  const icon = nativeImage.createFromPath(path.join(__dirname, '../../resources', iconFile));
+  if (process.platform === 'darwin') {
+    icon.setTemplateImage(true);
+  }
   tray = new Tray(icon);
   tray.setToolTip('Mascot Notifier');
 
@@ -109,12 +164,16 @@ function createTray(): void {
       label: '設定',
       click: () => createSettingsWindow(),
     },
-    {
-      label: '通知設定を開く',
-      click: () => {
-        shell.openExternal('x-apple.systempreferences:com.apple.Notifications-Settings');
-      },
-    },
+    ...(process.platform === 'darwin'
+      ? [
+          {
+            label: '通知設定を開く',
+            click: () => {
+              shell.openExternal('x-apple.systempreferences:com.apple.Notifications-Settings');
+            },
+          },
+        ]
+      : []),
     { type: 'separator' },
     {
       label: '終了',
@@ -137,7 +196,7 @@ app.whenReady().then(() => {
     overlayWindow?.webContents.send('settings-changed', settings);
   });
 
-  monitor = new NotificationMonitor();
+  monitor = createNotificationMonitor();
   monitor.on('started', () => {
     overlayWindow?.webContents.send('notification', {
       sender: 'Mascot Notifier',
@@ -148,31 +207,51 @@ app.whenReady().then(() => {
     overlayWindow?.webContents.send('notification', notification);
   });
   monitor.on('permission-error', async () => {
-    const { response } = await dialog.showMessageBox({
-      type: 'warning',
-      title: 'フルディスクアクセスが必要です',
-      message: 'macOS の通知を取得するために「フルディスクアクセス」権限が必要です。',
-      detail: [
-        '【必要な理由について】',
-        'このアプリは macOS の通知センターのデータベースを読み取ることで、各アプリの通知を検知しています。このデータベースへのアクセスに「フルディスクアクセス」が必要です。',
-        '',
-        '【安全性について】',
-        '• データベースは読み取り専用で開いており、変更・削除は一切行いません',
-        '• 通知データを外部に送信することはありません',
-        '• アプリはすべてローカルで動作します',
-        '',
-        '【設定手順】',
-        '1. 「システム設定を開く」をクリック',
-        '2. 「フルディスクアクセス」の一覧からこのアプリを許可',
-        '3. アプリを再起動',
-      ].join('\n'),
-      buttons: ['システム設定を開く', '後で設定する'],
-      defaultId: 0,
-    });
-    if (response === 0) {
-      shell.openExternal(
-        'x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles',
-      );
+    if (process.platform === 'darwin') {
+      const { response } = await dialog.showMessageBox({
+        type: 'warning',
+        title: 'フルディスクアクセスが必要です',
+        message: 'macOS の通知を取得するために「フルディスクアクセス」権限が必要です。',
+        detail: [
+          '【必要な理由について】',
+          'このアプリは macOS の通知センターのデータベースを読み取ることで、各アプリの通知を検知しています。このデータベースへのアクセスに「フルディスクアクセス」が必要です。',
+          '',
+          '【安全性について】',
+          '• データベースは読み取り専用で開いており、変更・削除は一切行いません',
+          '• 通知データを外部に送信することはありません',
+          '• アプリはすべてローカルで動作します',
+          '',
+          '【設定手順】',
+          '1. 「システム設定を開く」をクリック',
+          '2. 「フルディスクアクセス」の一覧からこのアプリを許可',
+          '3. アプリを再起動',
+        ].join('\n'),
+        buttons: ['システム設定を開く', '後で設定する'],
+        defaultId: 0,
+      });
+      if (response === 0) {
+        shell.openExternal(
+          'x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles',
+        );
+      }
+    } else if (process.platform === 'win32') {
+      const { response } = await dialog.showMessageBox({
+        type: 'warning',
+        title: '通知アクセスが必要です',
+        message: 'Windows の通知を取得するために「通知へのアクセス」権限が必要です。',
+        detail: [
+          '【設定手順】',
+          '1. 「設定を開く」をクリック',
+          '2. プライバシーとセキュリティ → 通知',
+          '3. このアプリの通知アクセスを許可',
+          '4. アプリを再起動',
+        ].join('\n'),
+        buttons: ['設定を開く', '後で設定する'],
+        defaultId: 0,
+      });
+      if (response === 0) {
+        shell.openExternal('ms-settings:privacy-notifications');
+      }
     }
   });
   monitor.start();
@@ -184,4 +263,5 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   monitor?.stop();
+  logStream?.end();
 });
