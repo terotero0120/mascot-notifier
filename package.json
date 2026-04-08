@@ -12,7 +12,7 @@
     "lint:fix": "biome check --write src/",
     "format": "biome format --write src/",
     "dist:mac": "npm run build && electron-builder --mac",
-    "dist:win": "npm run build && cd node_modules/better-sqlite3 && npx prebuild-install --platform win32 --arch arm64 --runtime electron --target 33.4.11 && cd ../.. && electron-builder --win -c.npmRebuild=false; cd node_modules/better-sqlite3 && npx prebuild-install --runtime electron --target 33.4.11"
+    "dist:win": "npm run build && cd node_modules/better-sqlite3 && npx prebuild-install --platform win32 --arch arm64 --runtime electron --target $(node -p \"require('../electron/package.json').version\") && cd ../.. && electron-builder --win -c.npmRebuild=false; cd node_modules/better-sqlite3 && npx prebuild-install --runtime electron --target $(node -p \"require('../electron/package.json').version\")"
   },
   "build": {
     "appId": "com.mascot-notifier.app",

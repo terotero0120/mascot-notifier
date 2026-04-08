@@ -15,25 +15,49 @@ import {
 
 // File logging (active on Windows or when LOG_TO_FILE env is set)
 let logStream: fs.WriteStream | null = null;
-if (process.platform === 'win32' || process.env.LOG_TO_FILE) {
-  const logPath = path.join(app.getPath('userData'), 'app.log');
-  const stream = fs.createWriteStream(logPath, { flags: 'a' });
-  logStream = stream;
-  const timestamp = () => new Date().toISOString();
-  const serialize = (args: unknown[]) =>
-    args.map((a) => (typeof a === 'string' ? a : inspect(a))).join(' ');
-  for (const [method, label] of [
-    ['log', 'LOG  '],
-    ['warn', 'WARN '],
-    ['error', 'ERROR'],
-  ] as const) {
-    const orig = console[method].bind(console);
-    console[method] = (...args: unknown[]) => {
-      orig(...args);
-      stream.write(`[${timestamp()}] ${label} ${serialize(args)}\n`);
-    };
+
+function initFileLogging(): void {
+  if (!(process.platform === 'win32' || process.env.LOG_TO_FILE)) return;
+
+  try {
+    const userDataPath = app.getPath('userData');
+    fs.mkdirSync(userDataPath, { recursive: true });
+    const logPath = path.join(userDataPath, 'app.log');
+    const stream = fs.createWriteStream(logPath, { flags: 'a' });
+    logStream = stream;
+
+    stream.on('error', (err) => {
+      console.error('File logging disabled:', err);
+      logStream = null;
+    });
+
+    const timestamp = () => new Date().toISOString();
+    const serialize = (args: unknown[]) =>
+      args.map((a) => (typeof a === 'string' ? a : inspect(a))).join(' ');
+    for (const [method, label] of [
+      ['log', 'LOG  '],
+      ['warn', 'WARN '],
+      ['error', 'ERROR'],
+    ] as const) {
+      const orig = console[method].bind(console);
+      console[method] = (...args: unknown[]) => {
+        orig(...args);
+        if (logStream) {
+          logStream.write(`[${timestamp()}] ${label} ${serialize(args)}\n`);
+        }
+      };
+    }
+    console.log('Log file:', logPath);
+  } catch (err) {
+    console.error('Failed to initialize file logging:', err);
+    logStream = null;
   }
-  console.log('Log file:', logPath);
+}
+
+if (app.isReady()) {
+  initFileLogging();
+} else {
+  app.whenReady().then(initFileLogging);
 }
 
 import { type BaseNotificationMonitor, createNotificationMonitor } from './notificationMonitor';

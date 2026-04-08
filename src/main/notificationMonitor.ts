@@ -9,5 +9,8 @@ export function createNotificationMonitor(): BaseNotificationMonitor {
   if (process.platform === 'win32') {
     return new WindowsNotificationMonitor();
   }
-  return new MacNotificationMonitor();
+  if (process.platform === 'darwin') {
+    return new MacNotificationMonitor();
+  }
+  throw new Error(`Unsupported platform for notification monitoring: ${process.platform}`);
 }

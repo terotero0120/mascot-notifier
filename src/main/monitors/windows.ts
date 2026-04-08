@@ -59,7 +59,7 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
           SELECT n.Id, n.ArrivalTime, n.Payload, h.PrimaryId
           FROM Notification n
           LEFT JOIN NotificationHandler h ON n.HandlerId = h.RecordId
-          WHERE n.ArrivalTime > ? AND n.Type = 'toast'
+          WHERE n.ArrivalTime >= ? AND n.Type = 'toast'
           ORDER BY n.ArrivalTime ASC
         `,
         )
