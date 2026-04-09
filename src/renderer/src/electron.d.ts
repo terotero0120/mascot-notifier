@@ -4,7 +4,9 @@ interface AppSettings {
 }
 
 interface ElectronAPI {
-  onNotification: (callback: (data: { sender: string; body: string }) => void) => () => void;
+  onNotification: (
+    callback: (data: { sender: string; body: string; appName?: string }) => void,
+  ) => () => void;
   onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void;
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: AppSettings) => Promise<void>;

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 interface NotificationData {
   sender: string;
   body: string;
+  appName?: string;
 }
 
 export const CharacterOverlay: React.FC = () => {
@@ -92,6 +93,17 @@ export const CharacterOverlay: React.FC = () => {
           position: 'relative',
         }}
       >
+        {notification.appName && (
+          <div
+            style={{
+              fontSize: 10,
+              color: '#999',
+              marginBottom: 2,
+            }}
+          >
+            {notification.appName}
+          </div>
+        )}
         <div
           style={{
             fontSize: 11,

@@ -156,6 +156,7 @@ function createTray(): void {
         overlayWindow?.webContents.send('notification', {
           sender: 'テスト送信者',
           body: 'これはテスト通知です！',
+          appName: 'Mascot Notifier',
         });
       },
     },
@@ -201,6 +202,7 @@ app.whenReady().then(() => {
     overlayWindow?.webContents.send('notification', {
       sender: 'Mascot Notifier',
       body: '起動しました！通知を監視しています。',
+      appName: 'Mascot Notifier',
     });
   });
   monitor.on('notification', (notification) => {
