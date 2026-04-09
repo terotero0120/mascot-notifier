@@ -3,7 +3,35 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-const cache = new Map<string, string>();
+class BoundedCache extends Map<string, string> {
+  constructor(private readonly maxEntries: number) {
+    super();
+  }
+
+  override get(key: string): string | undefined {
+    const value = super.get(key);
+    if (value === undefined) return undefined;
+    super.delete(key);
+    super.set(key, value);
+    return value;
+  }
+
+  override set(key: string, value: string): this {
+    if (super.has(key)) {
+      super.delete(key);
+    }
+    super.set(key, value);
+    if (this.size > this.maxEntries) {
+      const oldestKey = this.keys().next().value;
+      if (oldestKey !== undefined) {
+        super.delete(oldestKey);
+      }
+    }
+    return this;
+  }
+}
+
+const cache = new BoundedCache(256);
 
 const KNOWN_APPS: Record<string, string> = {
   'com.apple.MobileSMS': 'メッセージ',
@@ -132,15 +160,13 @@ export async function resolveAppName(identifier: string): Promise<string> {
   if (existing) return existing;
 
   const promise = (async () => {
-    let name: string;
-    if (isWin) {
-      name = resolveAppNameWin(identifier);
-    } else {
-      name = await resolveAppNameMac(identifier);
+    try {
+      const name = isWin ? resolveAppNameWin(identifier) : await resolveAppNameMac(identifier);
+      cache.set(lookupKey, name);
+      return name;
+    } finally {
+      inflight.delete(lookupKey);
     }
-    cache.set(lookupKey, name);
-    inflight.delete(lookupKey);
-    return name;
   })();
 
   inflight.set(lookupKey, promise);

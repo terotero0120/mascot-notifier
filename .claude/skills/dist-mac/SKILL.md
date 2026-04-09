@@ -1,4 +1,5 @@
 ---
+user_invocable: true
 description: macOS用ディストリビューションをビルドする
 ---
 
