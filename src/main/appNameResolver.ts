@@ -110,22 +110,39 @@ function fallbackName(identifier: string): string {
   return parts[parts.length - 1] || identifier;
 }
 
+function normalizeWinId(appId: string): string {
+  return appId.split('!')[0].replace(/_.*$/, '');
+}
+
+const inflight = new Map<string, Promise<string>>();
+
 export async function resolveAppName(identifier: string): Promise<string> {
   if (!identifier) return '';
 
-  const known = KNOWN_APPS[identifier];
+  const isWin = process.platform !== 'darwin';
+  const lookupKey = isWin ? normalizeWinId(identifier) : identifier;
+
+  const known = KNOWN_APPS[lookupKey];
   if (known) return known;
 
-  const cached = cache.get(identifier);
+  const cached = cache.get(lookupKey);
   if (cached) return cached;
 
-  let name: string;
-  if (process.platform === 'darwin') {
-    name = await resolveAppNameMac(identifier);
-  } else {
-    name = resolveAppNameWin(identifier);
-  }
+  const existing = inflight.get(lookupKey);
+  if (existing) return existing;
 
-  cache.set(identifier, name);
-  return name;
+  const promise = (async () => {
+    let name: string;
+    if (isWin) {
+      name = resolveAppNameWin(identifier);
+    } else {
+      name = await resolveAppNameMac(identifier);
+    }
+    cache.set(lookupKey, name);
+    inflight.delete(lookupKey);
+    return name;
+  })();
+
+  inflight.set(lookupKey, promise);
+  return promise;
 }

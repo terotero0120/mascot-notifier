@@ -25,6 +25,7 @@ export abstract class BaseNotificationMonitor extends EventEmitter {
   protected abstract poll(): Promise<void>;
 
   start(): void {
+    if (this.intervalId) return;
     this.onStart();
     this.intervalId = setInterval(() => {
       if (!this.polling) {
