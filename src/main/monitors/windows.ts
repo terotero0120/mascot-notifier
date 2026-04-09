@@ -86,9 +86,9 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
       const appNames = await Promise.all(parsed.map((p) => resolveAppName(p.appId)));
 
       for (let i = 0; i < parsed.length; i++) {
-        const { sender, body } = parsed[i];
+        const { sender, body, appId } = parsed[i];
         const appName = appNames[i];
-        console.log('New notification:', appName, '-', sender, '-', body);
+        console.log('New notification:', appName, `(${appId})`, '-', sender, '-', body);
         this.emit('notification', { sender, body, appName });
       }
 
