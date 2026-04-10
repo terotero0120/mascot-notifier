@@ -88,10 +88,13 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
 
       this.trimSeenCache();
     } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code ?? '';
       const message = (err as Error).message;
       console.error('MacNotificationMonitor poll error:', message);
       if (
-        message.includes('SQLITE_CANTOPEN') ||
+        code === 'ENOENT' ||
+        code === 'EACCES' ||
+        code === 'SQLITE_CANTOPEN' ||
         message.includes('unable to open database') ||
         message.includes('directory does not exist')
       ) {
@@ -104,15 +107,19 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
     const dbPath = this.dbPath ?? MacNotificationMonitor.resolveDbPath();
 
     const db = new Database(dbPath, { readonly: true, fileMustExist: true });
-    const rows = db
-      .prepare(`
-        SELECT rec.rec_id, rec.data, rec.delivered_date
-        FROM record AS rec
-        ORDER BY rec.delivered_date DESC
-        LIMIT ?
-      `)
-      .all(n) as Array<{ rec_id: number; data: Buffer; delivered_date: number }>;
-    db.close();
+    let rows: Array<{ rec_id: number; data: Buffer; delivered_date: number }>;
+    try {
+      rows = db
+        .prepare(`
+          SELECT rec.rec_id, rec.data, rec.delivered_date
+          FROM record AS rec
+          ORDER BY rec.delivered_date DESC
+          LIMIT ?
+        `)
+        .all(n) as typeof rows;
+    } finally {
+      db.close();
+    }
 
     return await Promise.all(
       rows.map(async (row) => {

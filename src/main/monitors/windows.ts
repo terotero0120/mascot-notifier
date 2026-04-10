@@ -129,22 +129,26 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
       );
 
     const db = new Database(dbPath, { readonly: true, fileMustExist: true });
-    const rows = db
-      .prepare(`
-        SELECT n.Id, n.ArrivalTime, n.Payload, h.PrimaryId
-        FROM Notification n
-        LEFT JOIN NotificationHandler h ON n.HandlerId = h.RecordId
-        WHERE n.Type = 'toast'
-        ORDER BY n.ArrivalTime DESC
-        LIMIT ?
-      `)
-      .all(n) as Array<{
+    let rows: Array<{
       Id: number;
       ArrivalTime: number;
       Payload: Buffer | string;
       PrimaryId: string | null;
     }>;
-    db.close();
+    try {
+      rows = db
+        .prepare(`
+          SELECT n.Id, n.ArrivalTime, n.Payload, h.PrimaryId
+          FROM Notification n
+          LEFT JOIN NotificationHandler h ON n.HandlerId = h.RecordId
+          WHERE n.Type = 'toast'
+          ORDER BY n.ArrivalTime DESC
+          LIMIT ?
+        `)
+        .all(n) as typeof rows;
+    } finally {
+      db.close();
+    }
 
     return await Promise.all(
       rows.map(async (row) => {

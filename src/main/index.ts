@@ -179,12 +179,13 @@ async function handleFetchLatest(): Promise<void> {
       buttons: ['閉じる'],
     });
   } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code ?? '';
     const message = (err as Error).message ?? '';
     const isPermission =
-      message.includes('SQLITE_CANTOPEN') ||
+      code === 'ENOENT' ||
+      code === 'EACCES' ||
+      code === 'SQLITE_CANTOPEN' ||
       message.includes('unable to open database') ||
-      message.includes('ENOENT') ||
-      message.includes('EACCES') ||
       message.includes('directory does not exist');
 
     await dialog.showMessageBox({
