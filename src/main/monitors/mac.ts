@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { resolveAppName } from '../appNameResolver';
 import { BaseNotificationMonitor } from './base';
 
 // eslint-disable-next-line no-eval
@@ -9,12 +10,10 @@ const Database = nativeRequire('better-sqlite3') as typeof import('better-sqlite
 const bplist = nativeRequire('bplist-parser') as { parseBuffer: (buf: Buffer) => unknown[] };
 
 export class MacNotificationMonitor extends BaseNotificationMonitor {
-  private intervalId: ReturnType<typeof setInterval> | null = null;
   private lastCheckTime: number = Date.now();
-  private readonly pollIntervalMs = 3000;
   private dbPath: string | null = null;
 
-  start(): void {
+  protected onStart(): void {
     const newPath = path.join(
       os.homedir(),
       'Library/Group Containers/group.com.apple.usernoted/db2/db',
@@ -24,21 +23,15 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
       'Library/Application Support/com.apple.notificationcenter/db2/db',
     );
     this.dbPath = fs.existsSync(newPath) ? newPath : legacyPath;
-
     this.lastCheckTime = Date.now();
-    this.intervalId = setInterval(() => this.poll(), this.pollIntervalMs);
     console.log('MacNotificationMonitor started, DB:', this.dbPath);
   }
 
-  stop(): void {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
+  protected onStop(): void {
     console.log('MacNotificationMonitor stopped');
   }
 
-  private poll(): void {
+  protected async poll(): Promise<void> {
     if (!this.dbPath) return;
 
     try {
@@ -59,15 +52,23 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
 
       this.emitStartedOnce();
 
-      for (const row of rows) {
-        if (this.seenIds.has(row.rec_id)) continue;
+      const newRows = rows.filter((row) => {
+        if (this.seenIds.has(row.rec_id)) return false;
         this.seenIds.add(row.rec_id);
+        return true;
+      });
 
-        const notification = this.parseNotificationData(row.data);
-        if (notification) {
-          console.log('New notification:', notification.sender, '-', notification.body);
-          this.emit('notification', notification);
-        }
+      const parsed = newRows
+        .map((row) => this.parseNotificationData(row.data))
+        .filter((p): p is NonNullable<typeof p> => p !== null);
+
+      const appNames = await Promise.all(parsed.map((p) => resolveAppName(p.bundleId)));
+
+      for (let i = 0; i < parsed.length; i++) {
+        const { sender, body } = parsed[i];
+        const appName = appNames[i];
+        console.log('New notification:', appName, '-', sender, '-', body);
+        this.emit('notification', { sender, body, appName });
       }
 
       if (rows.length > 0) {
@@ -89,7 +90,9 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
     }
   }
 
-  private parseNotificationData(data: Buffer): { sender: string; body: string } | null {
+  private parseNotificationData(
+    data: Buffer,
+  ): { sender: string; body: string; bundleId: string } | null {
     try {
       const parsed = bplist.parseBuffer(data);
       if (!parsed?.[0]) return null;
@@ -100,6 +103,7 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
 
       let body = '';
       let sender = '';
+      const bundleId = typeof root.app === 'string' ? (root.app as string) : '';
 
       if (typeof req.body === 'string') {
         body = req.body;
@@ -114,15 +118,14 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
         sender = req.titl;
       }
 
-      if (!sender && typeof root.app === 'string') {
-        const bundleId = root.app as string;
+      if (!sender && bundleId) {
         const parts = bundleId.split('.');
         sender = parts[parts.length - 1];
       }
 
       if (!body) return null;
 
-      return { sender: sender || 'Unknown', body };
+      return { sender: sender || 'Unknown', body, bundleId };
     } catch (err) {
       console.error('Failed to parse notification data:', err);
       return null;

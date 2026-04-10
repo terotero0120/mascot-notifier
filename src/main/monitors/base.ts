@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events';
 export interface NotificationData {
   sender: string;
   body: string;
+  appName?: string;
 }
 
 /**
@@ -16,10 +17,41 @@ export interface NotificationData {
 export abstract class BaseNotificationMonitor extends EventEmitter {
   private startedEmitted = false;
   private errorEmitted = false;
+  private intervalId: ReturnType<typeof setInterval> | null = null;
+  private polling = false;
+  protected readonly pollIntervalMs = 3000;
   protected seenIds = new Set<number>();
 
-  abstract start(): void;
-  abstract stop(): void;
+  protected abstract poll(): Promise<void>;
+
+  start(): void {
+    if (this.intervalId) return;
+    this.onStart();
+    this.intervalId = setInterval(() => {
+      if (!this.polling) {
+        this.polling = true;
+        this.poll().finally(() => {
+          this.polling = false;
+        });
+      }
+    }, this.pollIntervalMs);
+  }
+
+  stop(): void {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    this.onStop();
+  }
+
+  override emit(event: string | symbol, ...args: unknown[]): boolean {
+    if (!this.intervalId) return false;
+    return super.emit(event, ...args);
+  }
+
+  protected onStart(): void {}
+  protected onStop(): void {}
 
   protected emitStartedOnce(): void {
     if (!this.startedEmitted) {

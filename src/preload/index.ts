@@ -9,7 +9,7 @@ function createListener<T>(channel: string, callback: (data: T) => void): () => 
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  onNotification: (callback: (data: { sender: string; body: string }) => void) =>
+  onNotification: (callback: (data: { sender: string; body: string; appName?: string }) => void) =>
     createListener('notification', callback),
   onSettingsChanged: (
     callback: (settings: { characterFile: string; displayDuration: number }) => void,

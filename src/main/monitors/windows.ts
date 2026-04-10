@@ -1,5 +1,6 @@
 import os from 'node:os';
 import path from 'node:path';
+import { resolveAppName } from '../appNameResolver';
 import { BaseNotificationMonitor } from './base';
 
 // eslint-disable-next-line no-eval
@@ -19,12 +20,10 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
   private static readonly FILETIME_UNIX_EPOCH_OFFSET = 11644473600;
   private static readonly FILETIME_TICKS_PER_SECOND = 10_000_000;
 
-  private intervalId: ReturnType<typeof setInterval> | null = null;
-  private readonly pollIntervalMs = 3000;
   private lastArrivalTime = 0;
   private dbPath = '';
 
-  start(): void {
+  protected onStart(): void {
     this.lastArrivalTime =
       (Math.floor(Date.now() / 1000) + WindowsNotificationMonitor.FILETIME_UNIX_EPOCH_OFFSET) *
       WindowsNotificationMonitor.FILETIME_TICKS_PER_SECOND;
@@ -37,19 +36,14 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
       'Notifications',
       'wpndatabase.db',
     );
-    this.intervalId = setInterval(() => this.poll(), this.pollIntervalMs);
     console.log('WindowsNotificationMonitor started');
   }
 
-  stop(): void {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
+  protected onStop(): void {
     console.log('WindowsNotificationMonitor stopped');
   }
 
-  private poll(): void {
+  protected async poll(): Promise<void> {
     try {
       const db = new Database(this.dbPath, { readonly: true, fileMustExist: true });
 
@@ -74,18 +68,28 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
 
       this.emitStartedOnce();
 
-      for (const row of rows) {
-        if (this.seenIds.has(row.Id)) continue;
+      const newRows = rows.filter((row) => {
+        if (this.seenIds.has(row.Id)) return false;
         this.seenIds.add(row.Id);
+        return true;
+      });
 
-        const payload = Buffer.isBuffer(row.Payload)
-          ? row.Payload.toString('utf-8')
-          : String(row.Payload);
-        const notification = this.parsePayload(payload, row.PrimaryId);
-        if (notification) {
-          console.log('New notification:', notification.sender, '-', notification.body);
-          this.emit('notification', notification);
-        }
+      const parsed = newRows
+        .map((row) => {
+          const payload = Buffer.isBuffer(row.Payload)
+            ? row.Payload.toString('utf-8')
+            : String(row.Payload);
+          return this.parsePayload(payload, row.PrimaryId);
+        })
+        .filter((p): p is NonNullable<typeof p> => p !== null);
+
+      const appNames = await Promise.all(parsed.map((p) => resolveAppName(p.appId)));
+
+      for (let i = 0; i < parsed.length; i++) {
+        const { sender, body, appId } = parsed[i];
+        const appName = appNames[i];
+        console.log('New notification:', appName, `(${appId})`, '-', sender, '-', body);
+        this.emit('notification', { sender, body, appName });
       }
 
       if (rows.length > 0) {
@@ -110,7 +114,7 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
   private parsePayload(
     payload: string,
     appId: string | null,
-  ): { sender: string; body: string } | null {
+  ): { sender: string; body: string; appId: string } | null {
     try {
       const texts = [...payload.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/gi)].map((m) =>
         m[1].trim(),
@@ -122,7 +126,7 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
         texts.length >= 2 ? texts[0] : (appId?.split('.').pop()?.replace(/_.*$/, '') ?? '');
 
       if (!body) return null;
-      return { sender: sender || 'Unknown', body };
+      return { sender: sender || 'Unknown', body, appId: appId ?? '' };
     } catch (err) {
       console.error('Failed to parse notification payload:', err);
       return null;
