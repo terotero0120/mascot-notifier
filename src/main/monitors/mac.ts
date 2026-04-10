@@ -2,7 +2,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { resolveAppName } from '../appNameResolver';
-import { BaseNotificationMonitor } from './base';
+import {
+  BaseNotificationMonitor,
+  formatNotificationTimestamp,
+  type LatestNotificationRecord,
+} from './base';
 
 // eslint-disable-next-line no-eval
 const nativeRequire = eval('require') as NodeRequire;
@@ -10,10 +14,12 @@ const Database = nativeRequire('better-sqlite3') as typeof import('better-sqlite
 const bplist = nativeRequire('bplist-parser') as { parseBuffer: (buf: Buffer) => unknown[] };
 
 export class MacNotificationMonitor extends BaseNotificationMonitor {
+  private static readonly CORE_DATA_EPOCH_OFFSET = 978307200;
+
   private lastCheckTime: number = Date.now();
   private dbPath: string | null = null;
 
-  protected onStart(): void {
+  private static resolveDbPath(): string {
     const newPath = path.join(
       os.homedir(),
       'Library/Group Containers/group.com.apple.usernoted/db2/db',
@@ -22,7 +28,11 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
       os.homedir(),
       'Library/Application Support/com.apple.notificationcenter/db2/db',
     );
-    this.dbPath = fs.existsSync(newPath) ? newPath : legacyPath;
+    return fs.existsSync(newPath) ? newPath : legacyPath;
+  }
+
+  protected onStart(): void {
+    this.dbPath = MacNotificationMonitor.resolveDbPath();
     this.lastCheckTime = Date.now();
     console.log('MacNotificationMonitor started, DB:', this.dbPath);
   }
@@ -37,8 +47,7 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
     try {
       const db = new Database(this.dbPath, { readonly: true, fileMustExist: true });
 
-      // Core Data epoch: 2001-01-01 is 978307200 seconds after Unix epoch
-      const since = this.lastCheckTime / 1000 - 978307200;
+      const since = this.lastCheckTime / 1000 - MacNotificationMonitor.CORE_DATA_EPOCH_OFFSET;
       const rows = db
         .prepare(`
           SELECT rec.rec_id, rec.data, rec.delivered_date
@@ -73,21 +82,84 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
 
       if (rows.length > 0) {
         const lastRow = rows[rows.length - 1];
-        this.lastCheckTime = (lastRow.delivered_date + 978307200) * 1000;
+        this.lastCheckTime =
+          (lastRow.delivered_date + MacNotificationMonitor.CORE_DATA_EPOCH_OFFSET) * 1000;
       }
 
       this.trimSeenCache();
     } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code ?? '';
       const message = (err as Error).message;
       console.error('MacNotificationMonitor poll error:', message);
       if (
-        message.includes('SQLITE_CANTOPEN') ||
+        code === 'ENOENT' ||
+        code === 'EACCES' ||
+        code === 'SQLITE_CANTOPEN' ||
         message.includes('unable to open database') ||
         message.includes('directory does not exist')
       ) {
         this.emitPermissionErrorOnce();
       }
     }
+  }
+
+  async fetchLatest(n: number): Promise<LatestNotificationRecord[]> {
+    const dbPath = this.dbPath ?? MacNotificationMonitor.resolveDbPath();
+
+    const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+    let rows: Array<{ rec_id: number; data: Buffer; delivered_date: number }>;
+    try {
+      rows = db
+        .prepare(`
+          SELECT rec.rec_id, rec.data, rec.delivered_date
+          FROM record AS rec
+          ORDER BY rec.delivered_date DESC
+          LIMIT ?
+        `)
+        .all(n) as typeof rows;
+    } finally {
+      db.close();
+    }
+
+    return await Promise.all(
+      rows.map(async (row) => {
+        const timestamp = formatNotificationTimestamp(
+          (row.delivered_date + MacNotificationMonitor.CORE_DATA_EPOCH_OFFSET) * 1000,
+        );
+
+        const p = this.parseNotificationData(row.data);
+        if (p !== null) {
+          const appName = await resolveAppName(p.bundleId);
+          return {
+            id: row.rec_id,
+            timestamp,
+            sender: p.sender,
+            body: p.body,
+            appName,
+            rawId: p.bundleId,
+          };
+        }
+
+        let bundleId = '';
+        try {
+          const raw = bplist.parseBuffer(row.data);
+          if (raw?.[0]) {
+            const root = raw[0] as Record<string, unknown>;
+            bundleId = typeof root.app === 'string' ? root.app : '';
+          }
+        } catch {
+          // ignore
+        }
+        return {
+          id: row.rec_id,
+          timestamp,
+          sender: '(不明)',
+          body: '(パース失敗)',
+          appName: bundleId || '(不明)',
+          rawId: bundleId,
+        };
+      }),
+    );
   }
 
   private parseNotificationData(

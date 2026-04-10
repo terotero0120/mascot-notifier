@@ -6,6 +6,26 @@ export interface NotificationData {
   appName?: string;
 }
 
+export interface LatestNotificationRecord {
+  id: number;
+  timestamp: string;
+  sender: string;
+  body: string;
+  appName: string;
+  rawId: string;
+}
+
+export function formatNotificationTimestamp(unixMs: number): string {
+  return new Date(unixMs).toLocaleString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
 /**
  * Base class for platform-specific notification monitors.
  *
@@ -23,6 +43,7 @@ export abstract class BaseNotificationMonitor extends EventEmitter {
   protected seenIds = new Set<number>();
 
   protected abstract poll(): Promise<void>;
+  abstract fetchLatest(n: number): Promise<LatestNotificationRecord[]>;
 
   start(): void {
     if (this.intervalId) return;
