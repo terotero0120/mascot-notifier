@@ -140,6 +140,65 @@ function createSettingsWindow(): void {
   });
 }
 
+async function handleFetchLatest(): Promise<void> {
+  if (!monitor) {
+    await dialog.showMessageBox({
+      type: 'info',
+      title: '最新10件を確認',
+      message: 'モニターが初期化されていません。',
+      buttons: ['OK'],
+    });
+    return;
+  }
+
+  try {
+    const records = await monitor.fetchLatest(10);
+
+    if (records.length === 0) {
+      await dialog.showMessageBox({
+        type: 'info',
+        title: '最新10件を確認',
+        message: '通知が見つかりませんでした。',
+        detail: 'データベースに通知が存在しないか、まだ記録されていません。',
+        buttons: ['閉じる'],
+      });
+      return;
+    }
+
+    const lines = records.map((r, i) => {
+      const num = String(i + 1).padStart(2, ' ');
+      const senderPart = r.sender !== r.appName ? ` - ${r.sender}` : '';
+      return `${num}. [${r.timestamp}] ${r.appName}${senderPart}\n    ${r.body}\n    (ID: ${r.id}, ${r.rawId})`;
+    });
+
+    await dialog.showMessageBox({
+      type: 'info',
+      title: `最新${records.length}件の通知`,
+      message: `データベースから取得した最新${records.length}件（新しい順）`,
+      detail: lines.join('\n\n'),
+      buttons: ['閉じる'],
+    });
+  } catch (err) {
+    const message = (err as Error).message ?? '';
+    const isPermission =
+      message.includes('SQLITE_CANTOPEN') ||
+      message.includes('unable to open database') ||
+      message.includes('ENOENT') ||
+      message.includes('EACCES') ||
+      message.includes('directory does not exist');
+
+    await dialog.showMessageBox({
+      type: 'warning',
+      title: '最新10件を確認 - エラー',
+      message: isPermission
+        ? 'データベースにアクセスできませんでした。'
+        : '通知の取得中にエラーが発生しました。',
+      detail: isPermission ? 'フルディスクアクセス権限が必要な場合があります。' : message,
+      buttons: ['OK'],
+    });
+  }
+}
+
 function createTray(): void {
   const iconFile = process.platform === 'win32' ? 'icon-win.png' : 'iconTemplate.png';
   const icon = nativeImage.createFromPath(path.join(__dirname, '../../resources', iconFile));
@@ -158,6 +217,12 @@ function createTray(): void {
           body: 'これはテスト通知です！',
           appName: 'Mascot Notifier',
         });
+      },
+    },
+    {
+      label: '最新10件を確認',
+      click: () => {
+        void handleFetchLatest();
       },
     },
     { type: 'separator' },

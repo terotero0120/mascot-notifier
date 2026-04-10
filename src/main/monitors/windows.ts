@@ -1,7 +1,11 @@
 import os from 'node:os';
 import path from 'node:path';
 import { resolveAppName } from '../appNameResolver';
-import { BaseNotificationMonitor } from './base';
+import {
+  BaseNotificationMonitor,
+  formatNotificationTimestamp,
+  type LatestNotificationRecord,
+} from './base';
 
 // eslint-disable-next-line no-eval
 const nativeRequire = eval('require') as NodeRequire;
@@ -109,6 +113,66 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
         this.emitPermissionErrorOnce();
       }
     }
+  }
+
+  async fetchLatest(n: number): Promise<LatestNotificationRecord[]> {
+    const dbPath =
+      this.dbPath ||
+      path.join(
+        os.homedir(),
+        'AppData',
+        'Local',
+        'Microsoft',
+        'Windows',
+        'Notifications',
+        'wpndatabase.db',
+      );
+
+    const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+    const rows = db
+      .prepare(`
+        SELECT n.Id, n.ArrivalTime, n.Payload, h.PrimaryId
+        FROM Notification n
+        LEFT JOIN NotificationHandler h ON n.HandlerId = h.RecordId
+        WHERE n.Type = 'toast'
+        ORDER BY n.ArrivalTime DESC
+        LIMIT ?
+      `)
+      .all(n) as Array<{
+      Id: number;
+      ArrivalTime: number;
+      Payload: Buffer | string;
+      PrimaryId: string | null;
+    }>;
+    db.close();
+
+    return await Promise.all(
+      rows.map(async (row) => {
+        const unixSeconds =
+          row.ArrivalTime / WindowsNotificationMonitor.FILETIME_TICKS_PER_SECOND -
+          WindowsNotificationMonitor.FILETIME_UNIX_EPOCH_OFFSET;
+        const timestamp = formatNotificationTimestamp(unixSeconds * 1000);
+
+        const payload = Buffer.isBuffer(row.Payload)
+          ? row.Payload.toString('utf-8')
+          : String(row.Payload);
+        const p = this.parsePayload(payload, row.PrimaryId);
+        if (p !== null) {
+          const appName = await resolveAppName(p.appId);
+          return { id: row.Id, timestamp, sender: p.sender, body: p.body, appName, rawId: p.appId };
+        }
+
+        const appId = row.PrimaryId ?? '';
+        return {
+          id: row.Id,
+          timestamp,
+          sender: '(不明)',
+          body: '(パース失敗)',
+          appName: appId || '(不明)',
+          rawId: appId,
+        };
+      }),
+    );
   }
 
   private parsePayload(
