@@ -19,7 +19,6 @@ export abstract class BaseNotificationMonitor extends EventEmitter {
   private errorEmitted = false;
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private polling = false;
-  private stopped = false;
   protected readonly pollIntervalMs = 3000;
   protected seenIds = new Set<number>();
 
@@ -27,7 +26,6 @@ export abstract class BaseNotificationMonitor extends EventEmitter {
 
   start(): void {
     if (this.intervalId) return;
-    this.stopped = false;
     this.onStart();
     this.intervalId = setInterval(() => {
       if (!this.polling) {
@@ -40,7 +38,6 @@ export abstract class BaseNotificationMonitor extends EventEmitter {
   }
 
   stop(): void {
-    this.stopped = true;
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -49,7 +46,7 @@ export abstract class BaseNotificationMonitor extends EventEmitter {
   }
 
   override emit(event: string | symbol, ...args: unknown[]): boolean {
-    if (this.stopped) return false;
+    if (!this.intervalId) return false;
     return super.emit(event, ...args);
   }
 
