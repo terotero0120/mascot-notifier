@@ -45,18 +45,13 @@ export function parseWindowsPayload(
   payload: string,
   appId: string | null,
 ): ParsedWindowsNotification | null {
-  try {
-    const texts = [...payload.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/gi)].map((m) => m[1].trim());
-    if (texts.length === 0) return null;
+  const texts = [...payload.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/gi)].map((m) => m[1].trim());
+  if (texts.length === 0) return null;
 
-    const body = texts.length >= 2 ? texts[1] : texts[0];
-    const sender =
-      texts.length >= 2 ? texts[0] : (appId?.split('.').pop()?.replace(/_.*$/, '') ?? '');
+  const body = texts.length >= 2 ? texts[1] : texts[0];
+  const sender =
+    texts.length >= 2 ? texts[0] : (appId?.split('.').pop()?.replace(/_.*$/, '') ?? '');
 
-    if (!body) return null;
-    return { sender: sender || 'Unknown', body, appId: appId ?? '' };
-  } catch (err) {
-    console.error('Failed to parse notification payload:', err);
-    return null;
-  }
+  if (!body) return null;
+  return { sender: sender || 'Unknown', body, appId: appId ?? '' };
 }

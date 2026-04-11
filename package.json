@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Desktop mascot notification app",
   "main": "./out/main/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
