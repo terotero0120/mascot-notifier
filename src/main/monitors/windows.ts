@@ -6,6 +6,7 @@ import {
   formatNotificationTimestamp,
   type LatestNotificationRecord,
 } from './base';
+import { fileTimeToUnixMs, parseWindowsPayload, unixSecondsToFileTime } from './windowsParser';
 
 // eslint-disable-next-line no-eval
 const nativeRequire = eval('require') as NodeRequire;
@@ -21,16 +22,11 @@ const Database = nativeRequire('better-sqlite3') as typeof import('better-sqlite
  * in the WAL file are visible immediately.
  */
 export class WindowsNotificationMonitor extends BaseNotificationMonitor {
-  private static readonly FILETIME_UNIX_EPOCH_OFFSET = 11644473600;
-  private static readonly FILETIME_TICKS_PER_SECOND = 10_000_000;
-
   private lastArrivalTime = 0;
   private dbPath = '';
 
   protected onStart(): void {
-    this.lastArrivalTime =
-      (Math.floor(Date.now() / 1000) + WindowsNotificationMonitor.FILETIME_UNIX_EPOCH_OFFSET) *
-      WindowsNotificationMonitor.FILETIME_TICKS_PER_SECOND;
+    this.lastArrivalTime = unixSecondsToFileTime(Math.floor(Date.now() / 1000));
     this.dbPath = path.join(
       os.homedir(),
       'AppData',
@@ -83,7 +79,7 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
           const payload = Buffer.isBuffer(row.Payload)
             ? row.Payload.toString('utf-8')
             : String(row.Payload);
-          return this.parsePayload(payload, row.PrimaryId);
+          return parseWindowsPayload(payload, row.PrimaryId);
         })
         .filter((p): p is NonNullable<typeof p> => p !== null);
 
@@ -152,15 +148,12 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
 
     return await Promise.all(
       rows.map(async (row) => {
-        const unixSeconds =
-          row.ArrivalTime / WindowsNotificationMonitor.FILETIME_TICKS_PER_SECOND -
-          WindowsNotificationMonitor.FILETIME_UNIX_EPOCH_OFFSET;
-        const timestamp = formatNotificationTimestamp(unixSeconds * 1000);
+        const timestamp = formatNotificationTimestamp(fileTimeToUnixMs(row.ArrivalTime));
 
         const payload = Buffer.isBuffer(row.Payload)
           ? row.Payload.toString('utf-8')
           : String(row.Payload);
-        const p = this.parsePayload(payload, row.PrimaryId);
+        const p = parseWindowsPayload(payload, row.PrimaryId);
         if (p !== null) {
           const appName = await resolveAppName(p.appId);
           return { id: row.Id, timestamp, sender: p.sender, body: p.body, appName, rawId: p.appId };
@@ -177,27 +170,5 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
         };
       }),
     );
-  }
-
-  private parsePayload(
-    payload: string,
-    appId: string | null,
-  ): { sender: string; body: string; appId: string } | null {
-    try {
-      const texts = [...payload.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/gi)].map((m) =>
-        m[1].trim(),
-      );
-      if (texts.length === 0) return null;
-
-      const body = texts.length >= 2 ? texts[1] : texts[0];
-      const sender =
-        texts.length >= 2 ? texts[0] : (appId?.split('.').pop()?.replace(/_.*$/, '') ?? '');
-
-      if (!body) return null;
-      return { sender: sender || 'Unknown', body, appId: appId ?? '' };
-    } catch (err) {
-      console.error('Failed to parse notification payload:', err);
-      return null;
-    }
   }
 }
