@@ -7,6 +7,7 @@ import {
   formatNotificationTimestamp,
   type LatestNotificationRecord,
 } from './base';
+import { extractMacNotification } from './macParser';
 
 // eslint-disable-next-line no-eval
 const nativeRequire = eval('require') as NodeRequire;
@@ -168,36 +169,7 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
     try {
       const parsed = bplist.parseBuffer(data);
       if (!parsed?.[0]) return null;
-
-      const root = parsed[0] as Record<string, unknown>;
-      const req = root.req as Record<string, unknown> | undefined;
-      if (!req) return null;
-
-      let body = '';
-      let sender = '';
-      const bundleId = typeof root.app === 'string' ? (root.app as string) : '';
-
-      if (typeof req.body === 'string') {
-        body = req.body;
-      } else if (Array.isArray(req.body)) {
-        const strings = (req.body as unknown[]).filter(
-          (item): item is string => typeof item === 'string' && !item.includes('Notification'),
-        );
-        body = strings[0] || String(req.body);
-      }
-
-      if (typeof req.titl === 'string') {
-        sender = req.titl;
-      }
-
-      if (!sender && bundleId) {
-        const parts = bundleId.split('.');
-        sender = parts[parts.length - 1];
-      }
-
-      if (!body) return null;
-
-      return { sender: sender || 'Unknown', body, bundleId };
+      return extractMacNotification(parsed[0] as Record<string, unknown>);
     } catch (err) {
       console.error('Failed to parse notification data:', err);
       return null;

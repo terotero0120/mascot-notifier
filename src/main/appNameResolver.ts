@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-class BoundedCache extends Map<string, string> {
+export class BoundedCache extends Map<string, string> {
   constructor(private readonly maxEntries: number) {
     super();
   }
@@ -105,7 +105,7 @@ const KNOWN_PWA_HOSTS: Record<string, string> = {
   'x.com': 'X',
 };
 
-function resolveAppNameWin(appId: string): string {
+export function resolveAppNameWin(appId: string): string {
   const exclamationIdx = appId.indexOf('!');
   if (exclamationIdx !== -1) {
     const afterExcl = appId.slice(exclamationIdx + 1);
@@ -133,12 +133,12 @@ function resolveAppNameWin(appId: string): string {
   return parts[0]?.replace(/_.*$/, '') || appId;
 }
 
-function fallbackName(identifier: string): string {
+export function fallbackName(identifier: string): string {
   const parts = identifier.split('.');
   return parts[parts.length - 1] || identifier;
 }
 
-function normalizeWinId(appId: string): string {
+export function normalizeWinId(appId: string): string {
   return appId.split('!')[0].replace(/_.*$/, '');
 }
 
