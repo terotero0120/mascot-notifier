@@ -26,9 +26,8 @@
 
 ## eval('require') の使用
 
-- `better-sqlite3` と `bplist-parser` のロードに `eval('require')` を使用
+- `mac.ts` では `better-sqlite3` と `bplist-parser`、`windows.ts` では `better-sqlite3` のロードに `eval('require')` を使用
 - ビルド時に Vite から警告が出るが、electron-vite の `ssr.noExternal: true` 強制を回避するための意図的な使用
-- `notificationMonitor.ts` でもプラットフォーム別モジュールの遅延読み込みに使用
 - セキュリティ上のリスクは低い（ハードコードされたモジュール名のみ使用）
 
 ## Windows 向けクロスビルド

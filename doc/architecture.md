@@ -6,12 +6,15 @@
 Electron App
 ├── Main Process (src/main/)
 │   ├── index.ts                  # アプリ起動・ウィンドウ管理・Tray制御・ファイルログ
-│   ├── notificationMonitor.ts    # プラットフォーム別モニターのファクトリ（遅延読み込み）
+│   ├── notificationMonitor.ts    # プラットフォーム別モニターのファクトリ（実行時プラットフォーム選択）
+│   ├── appNameResolver.ts        # バンドルID / PrimaryId → 表示名変換（LRUキャッシュ付き）
 │   ├── settings.ts               # 設定の永続化
 │   └── monitors/
 │       ├── base.ts               # BaseNotificationMonitor（共通ロジック）
 │       ├── mac.ts                # macOS通知監視
-│       └── windows.ts            # Windows通知監視
+│       ├── macParser.ts          # bplistデコード済みオブジェクトのパース（純粋関数）
+│       ├── windows.ts            # Windows通知監視
+│       └── windowsParser.ts     # WNS XML ペイロードのパース（純粋関数）
 ├── Preload (src/preload/)
 │   └── index.ts                  # IPC ブリッジ (contextBridge)
 └── Renderer Process (src/renderer/)
@@ -31,7 +34,37 @@ Electron App
 - `emitPermissionErrorOnce()` — 権限エラー時に `'permission-error'` を1回だけ発火
 - `trimSeenCache()` — `seenIds` が500件を超えたら古いエントリを削除（ゼロアロケーション）
 
-`notificationMonitor.ts` は `process.platform` に応じてモジュールを **遅延読み込み** する。これにより、macOS上でWindows用のネイティブモジュールをロードする問題を回避。
+`notificationMonitor.ts` は `MacNotificationMonitor` と `WindowsNotificationMonitor` を静的 import し、`createNotificationMonitor()` が `process.platform` を見て適切なインスタンスを返すファクトリパターン。両クラスのモジュール自体は常にロードされる。
+
+## アプリ名解決（`appNameResolver.ts`）
+
+通知の `bundleId` / `PrimaryId` を人間が読めるアプリ名に変換する。
+
+| 優先順位 | macOS | Windows |
+|---|---|---|
+| 1 | `KNOWN_APPS` テーブル（ハードコード） | `KNOWN_APPS` テーブル（ハードコード） |
+| 2 | LRU キャッシュ（最大 256 件） | LRU キャッシュ（最大 256 件） |
+| 3 | `mdfind` + `mdls` でバンドル ID → 表示名を解決 | `PrimaryId` の `.`/`!` 区切りパース |
+| 4 | バンドル ID の末尾セグメント（フォールバック） | PWA ホスト名（`KNOWN_PWA_HOSTS`）または hostname の逆順セグメント |
+
+- 同一 ID への並行リクエストは `inflight` Map で重複解決を防止
+- `normalizeWinId()` — `AppId!SomeApp` 形式から `!` 以降と `_version` サフィックスを除去してキャッシュキーを正規化
+
+## 通知パースモジュール（`macParser.ts` / `windowsParser.ts`）
+
+native モジュール（`better-sqlite3` / `bplist-parser`）への依存を持たない純粋関数として切り出されており、ユニットテスト可能。
+
+- `extractMacNotification(root)` — デコード済み bplist オブジェクトから `{ sender, body, bundleId }` を抽出
+- `parseWindowsPayload(payload, appId)` — XML 文字列から `{ sender, body, appId }` を抽出（`<text>` 要素を正規表現でパース、`<text>` が1つの場合は `appId` から送信者名を推定）
+
+## 設定永続化（`settings.ts`）
+
+| 項目 | 内容 |
+|---|---|
+| 保存先 | `app.getPath('userData')/settings.json` |
+| 保存項目 | `characterFile`（Lottie JSON ファイル名）、`displayDuration`（表示ミリ秒、デフォルト 5000） |
+| 読み込み | `loadSettings()` — ファイルが存在しない場合はデフォルト値を返す |
+| 保存 | `saveSettings(settings)` — JSON ファイルに同期書き込み |
 
 ## 通知取得の仕組み（macOS）
 
@@ -142,6 +175,15 @@ Main Process --[notification]--> Preload --[electronAPI.onNotification]--> Rende
 Main Process --[settings-changed]--> Preload --[electronAPI.onSettingsChanged]--> Renderer
 Renderer --[get-settings / save-settings]--> Preload --[ipcMain.handle]--> Main Process
 ```
+
+### Preload API サーフェス（`window.electronAPI`）
+
+| メソッド | 引数 | 戻り値 | 説明 |
+|---|---|---|---|
+| `onNotification(cb)` | `(data: { sender, body, appName? }) => void` | `() => void`（解除関数） | 通知受信リスナーを登録 |
+| `onSettingsChanged(cb)` | `(settings: { characterFile, displayDuration }) => void` | `() => void`（解除関数） | 設定変更リスナーを登録 |
+| `getSettings()` | — | `Promise<{ characterFile, displayDuration }>` | 現在の設定を取得 |
+| `saveSettings(settings)` | `{ characterFile, displayDuration }` | `Promise<void>` | 設定を保存 |
 
 ## ネイティブモジュールの取り扱い
 

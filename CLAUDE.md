@@ -9,16 +9,16 @@ macOSの通知センターを監視し、透明なオーバーレイウィンド
 ## コマンド
 
 ```bash
-npm run dev       # ホットリロード付き開発サーバー
-npm run build     # プロダクションビルド（./out/ に出力）
-npm run preview   # ビルド済みアプリのプレビュー
-npm run lint      # Biomeによるlint + formatチェック
-npm run lint:fix  # lint + format自動修正
-npm run format    # フォーマットのみ自動修正
-npm install       # 依存関係インストール + ネイティブモジュール再ビルド（better-sqlite3）
+npm run dev           # ホットリロード付き開発サーバー
+npm run build         # プロダクションビルド（./out/ に出力）
+npm run preview       # ビルド済みアプリのプレビュー
+npm test              # vitest（1回実行）
+npm run test:watch    # vitest（ウォッチモード）
+npm run lint          # Biomeによるlint + formatチェック
+npm run lint:fix      # lint + format自動修正
+npm run format        # フォーマットのみ自動修正
+npm install           # 依存関係インストール + ネイティブモジュール再ビルド（better-sqlite3）
 ```
-
-テストコマンドは未設定。
 
 ### ディストリビューション
 
@@ -35,7 +35,7 @@ Electronの3プロセス構成：
 
 ### 通知パイプライン
 
-`NotificationMonitor` (`src/main/notificationMonitor.ts`) がmacOS通知センターのSQLiteデータベースを3秒ごとにポーリングし、`bplist-parser` でバイナリplistデータをデコード、`rec_id` で重複排除してIPCでRendererに送信する。オーバーレイウィンドウはフレームなし・透明・最前面・クリックスルー。
+`createNotificationMonitor()` (`src/main/notificationMonitor.ts`) が `process.platform` に応じて `MacNotificationMonitor` または `WindowsNotificationMonitor` のインスタンスを返すファクトリ。各モニターは3秒ごとにSQLite DBをポーリングし、`rec_id` / `Id` で重複排除してIPCでRendererに送信する。オーバーレイウィンドウはフレームなし・透明・最前面・クリックスルー。
 
 ### 実装上の重要ポイント
 
