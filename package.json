@@ -17,7 +17,9 @@
     "lint:fix": "biome check --write src/",
     "format": "biome format --write src/",
     "dist:mac": "npm run build && electron-builder --mac",
-    "dist:win": "npm run build && cd node_modules/better-sqlite3 && npx prebuild-install --platform win32 --arch arm64 --runtime electron --target $(node -p \"require('../electron/package.json').version\") && cd ../.. && electron-builder --win -c.npmRebuild=false; cd node_modules/better-sqlite3 && npx prebuild-install --runtime electron --target $(node -p \"require('../electron/package.json').version\")"
+    "dist:win": "npm run build && ELECTRON_VER=$(node -p \"require('./node_modules/electron/package.json').version\") && cd node_modules/better-sqlite3 && npx prebuild-install --platform win32 --arch ${WIN_ARCH:-arm64} --runtime electron --target $ELECTRON_VER && cd ../.. && electron-builder --win --${WIN_ARCH:-arm64} -c.npmRebuild=false; RESULT=$?; (cd node_modules/better-sqlite3 && npx prebuild-install --runtime electron --target $ELECTRON_VER); RESTORE=$?; [ $RESULT -ne 0 ] && exit $RESULT; exit $RESTORE",
+    "dist:win:x64": "WIN_ARCH=x64 npm run dist:win",
+    "dist:win:arm64": "WIN_ARCH=arm64 npm run dist:win"
   },
   "build": {
     "appId": "com.mascot-notifier.app",
@@ -42,7 +44,8 @@
     },
     "nsis": {
       "oneClick": true,
-      "perMachine": false
+      "perMachine": false,
+      "artifactName": "${name}-setup-${version}.exe"
     },
     "extraResources": [
       {

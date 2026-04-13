@@ -24,21 +24,34 @@ npm run dev
 ```bash
 npm run build        # Vite ビルドのみ
 npm run dist:mac     # macOS 配布用 (.dmg)
-npm run dist:win     # Windows 配布用 (.exe, NSIS インストーラー)
+npm run dist:win     # Windows 配布用 arm64 (.exe, NSIS インストーラー)
+npm run dist:win:x64 # Windows 配布用 x64
 ```
 
 ### Windows 向けクロスビルド（macOS から）
 
+> **注意**: これらのスクリプトは macOS 上でのみ実行可能（POSIX シェル構文を使用）。
+
+```bash
+npm run dist:win        # arm64（デフォルト）
+npm run dist:win:x64    # x64
+npm run dist:win:arm64  # arm64（明示指定）
+```
+
+アーキテクチャは `WIN_ARCH` 環境変数でも切り替え可能：
+
+```bash
+WIN_ARCH=x64 npm run dist:win
+```
+
 `npm run dist:win` は以下を自動的に行う：
 
 1. `electron-vite build` でアプリをビルド
-2. `prebuild-install` で Windows arm64 用の `better-sqlite3` プリビルドバイナリをダウンロード
+2. `prebuild-install` で Windows 向けの `better-sqlite3` プリビルドバイナリをダウンロード
 3. `electron-builder --win` でパッケージング（ネイティブモジュールの自動リビルドはスキップ）
 4. ビルド後、macOS 用の `better-sqlite3` バイナリを復元
 
-出力先: `dist/Mascot Notifier Setup x.x.x.exe`
-
-> 現在のスクリプトは arm64 をターゲットにしている。x64 向けにビルドする場合はスクリプト内の `--arch arm64` を `--arch x64` に変更する。
+出力先: `dist/mascot-notifier-setup-x.x.x.exe`
 
 ## macOS フルディスクアクセスの設定
 
