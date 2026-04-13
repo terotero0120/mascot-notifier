@@ -35,7 +35,9 @@
 
 - macOS から `npm run dist:win` でクロスビルド可能だが、`better-sqlite3` のネイティブバイナリは `prebuild-install` で事前ダウンロードが必要
 - electron-builder の `@electron/rebuild` はホストプラットフォーム向けにしかリビルドできないため、`-c.npmRebuild=false` で無効化している
-- ビルドスクリプト内の `--arch arm64` はハードコードされているため、x64 向けビルドには手動修正が必要
+- `WIN_ARCH` 環境変数でアーキテクチャを切り替え可能（デフォルト: `arm64`）
+  - x64 向け: `npm run dist:win:x64` または `WIN_ARCH=x64 npm run dist:win`
+  - arm64 向け: `npm run dist:win:arm64` または `npm run dist:win`
 
 ## OS 通知との共存（二重表示）
 

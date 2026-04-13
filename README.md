@@ -81,9 +81,19 @@ npm run format     # フォーマットのみ自動修正
 
 ## 配布用ビルド
 
+> **注意**: 配布用ビルドは **macOS 上でのみ実行可能**です。ビルドスクリプトは POSIX シェル構文（`${VAR:-default}`、`VAR=value npm run ...`）を使用しており、Windows の cmd / PowerShell では動作しません。
+
 ```bash
-npm run dist:mac   # macOS 配布用 (.dmg)
-npm run dist:win   # Windows 配布用 (.exe, NSIS インストーラー)
+npm run dist:mac        # macOS 配布用 (.dmg)
+npm run dist:win        # Windows 配布用 arm64 (.exe, NSIS インストーラー)
+npm run dist:win:x64    # Windows 配布用 x64
+npm run dist:win:arm64  # Windows 配布用 arm64（dist:win と同じ）
+```
+
+アーキテクチャは `WIN_ARCH` 環境変数でも指定できます：
+
+```bash
+WIN_ARCH=x64 npm run dist:win
 ```
 
 ### macOS からの Windows クロスビルド
@@ -95,9 +105,7 @@ npm run dist:win   # Windows 配布用 (.exe, NSIS インストーラー)
 3. `electron-builder --win` でパッケージング
 4. ビルド後、macOS 用の `better-sqlite3` バイナリを復元
 
-出力先: `dist/Mascot Notifier Setup x.x.x.exe`
-
-> 現在のスクリプトは arm64 をターゲットにしています。x64 向けにビルドする場合はスクリプト内の `--arch arm64` を `--arch x64` に変更してください。
+出力先: `dist/mascot-notifier-setup-x.x.x.exe`
 
 ## プロジェクト構成
 
