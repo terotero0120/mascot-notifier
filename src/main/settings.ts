@@ -5,11 +5,13 @@ import { app } from 'electron';
 export interface AppSettings {
   characterFile: string;
   displayDuration: number;
+  displayPosition: 'top-right' | 'bottom-right';
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   characterFile: 'dance.json',
   displayDuration: 5000,
+  displayPosition: 'top-right',
 };
 
 function settingsPath(): string {

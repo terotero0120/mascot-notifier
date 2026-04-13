@@ -1,6 +1,7 @@
 interface AppSettings {
   characterFile: string;
   displayDuration: number;
+  displayPosition: 'top-right' | 'bottom-right';
 }
 
 interface ElectronAPI {

@@ -43,7 +43,7 @@ Electronの3プロセス構成：
 - **macOS DBパス**: Ventura以降（`~/Library/Group Containers/group.com.apple.usernoted/db2/db`）とレガシーパスの両方に対応
 - **Core Dataタイムスタンプ**: エポックオフセット 978307200（2001-01-01起点）で日付変換
 - **設定**: `app.getPath('userData')/settings.json` にJSON保存、IPCでRendererと同期
-- **オーバーレイウィンドウ**: 300x280px、スクリーンセーバーレベルのZオーダー、`setIgnoreMouseEvents(true, { forward: true })`
+- **オーバーレイウィンドウ**: 300x280px、スクリーンセーバーレベルのZオーダー、`setIgnoreMouseEvents(true, { forward: true })`、表示位置は `displayPosition` 設定で右上/右下を切り替え可能（起動時および設定保存時に `setPosition` で適用）
 - **アニメーション**: Lottie JSONファイル（dance.json, crab.json）を `lottie-react` で描画
 
 ### ビルド設定

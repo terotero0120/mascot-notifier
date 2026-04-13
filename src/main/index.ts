@@ -61,7 +61,7 @@ if (app.isReady()) {
 }
 
 import { type BaseNotificationMonitor, createNotificationMonitor } from './notificationMonitor';
-import { loadSettings, saveSettings } from './settings';
+import { type AppSettings, loadSettings, saveSettings } from './settings';
 
 let overlayWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
@@ -79,9 +79,19 @@ function loadRenderer(win: BrowserWindow, hash?: string): void {
   }
 }
 
-function createOverlayWindow(): BrowserWindow {
+function getOverlayPosition(settings: AppSettings): { x: number; y: number } {
   const display = screen.getPrimaryDisplay();
-  const { width } = display.workAreaSize;
+  const { width, height } = display.workAreaSize;
+  const winWidth = 300;
+  const winHeight = 280;
+  const x = width - winWidth - 16;
+  const y = settings.displayPosition === 'bottom-right' ? height - winHeight - 16 : 16;
+  return { x, y };
+}
+
+function createOverlayWindow(): BrowserWindow {
+  const settings = loadSettings();
+  const { x, y } = getOverlayPosition(settings);
 
   const winWidth = 300;
   const winHeight = 280;
@@ -89,8 +99,8 @@ function createOverlayWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: winWidth,
     height: winHeight,
-    x: width - winWidth - 16,
-    y: 16,
+    x,
+    y,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -124,7 +134,7 @@ function createSettingsWindow(): void {
 
   settingsWindow = new BrowserWindow({
     width: 400,
-    height: 360,
+    height: 430,
     resizable: false,
     webPreferences: {
       preload: preloadPath,
@@ -258,9 +268,11 @@ app.whenReady().then(() => {
   createTray();
 
   ipcMain.handle('get-settings', () => loadSettings());
-  ipcMain.handle('save-settings', (_event, settings) => {
+  ipcMain.handle('save-settings', (_event, settings: AppSettings) => {
     saveSettings(settings);
     overlayWindow?.webContents.send('settings-changed', settings);
+    const { x, y } = getOverlayPosition(settings);
+    overlayWindow?.setPosition(x, y);
   });
 
   monitor = createNotificationMonitor();

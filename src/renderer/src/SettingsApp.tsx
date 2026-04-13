@@ -6,18 +6,25 @@ const CHARACTER_OPTIONS = [
   { label: 'カニ', value: 'crab.json' },
 ];
 
+const POSITION_OPTIONS: { label: string; value: 'top-right' | 'bottom-right' }[] = [
+  { label: '右上', value: 'top-right' },
+  { label: '右下', value: 'bottom-right' },
+];
+
 const MIN_DURATION = 1;
 const MAX_DURATION = 10;
 
 export const SettingsApp: React.FC = () => {
   const [characterFile, setCharacterFile] = useState('dance.json');
   const [displayDuration, setDisplayDuration] = useState(5);
+  const [displayPosition, setDisplayPosition] = useState<'top-right' | 'bottom-right'>('top-right');
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     window.electronAPI.getSettings().then((settings) => {
       setCharacterFile(settings.characterFile);
       setDisplayDuration(settings.displayDuration / 1000);
+      setDisplayPosition(settings.displayPosition ?? 'top-right');
     });
   }, []);
 
@@ -27,6 +34,7 @@ export const SettingsApp: React.FC = () => {
     await window.electronAPI.saveSettings({
       characterFile,
       displayDuration: displayDuration * 1000,
+      displayPosition,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -66,6 +74,33 @@ export const SettingsApp: React.FC = () => {
             </option>
           ))}
         </select>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 6, fontSize: 14, fontWeight: 600 }}>表示位置</div>
+        <div style={{ display: 'flex', gap: 24 }}>
+          {POSITION_OPTIONS.map((opt) => (
+            <label
+              key={opt.value}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 14,
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="radio"
+                name="displayPosition"
+                value={opt.value}
+                checked={displayPosition === opt.value}
+                onChange={() => setDisplayPosition(opt.value)}
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
       </div>
 
       <div style={{ marginBottom: 24 }}>
