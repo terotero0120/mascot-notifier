@@ -79,13 +79,17 @@ function loadRenderer(win: BrowserWindow, hash?: string): void {
   }
 }
 
+const OVERLAY_WIN_WIDTH = 300;
+const OVERLAY_WIN_HEIGHT = 280;
+const OVERLAY_MARGIN = 16;
+
 function getOverlayPosition(settings: AppSettings): { x: number; y: number } {
-  const display = screen.getPrimaryDisplay();
-  const { width, height } = display.workAreaSize;
-  const winWidth = 300;
-  const winHeight = 280;
-  const x = width - winWidth - 16;
-  const y = settings.displayPosition === 'bottom-right' ? height - winHeight - 16 : 16;
+  const { x: workAreaX, y: workAreaY, width, height } = screen.getPrimaryDisplay().workArea;
+  const x = workAreaX + width - OVERLAY_WIN_WIDTH - OVERLAY_MARGIN;
+  const y =
+    settings.displayPosition === 'bottom-right'
+      ? workAreaY + height - OVERLAY_WIN_HEIGHT - OVERLAY_MARGIN
+      : workAreaY + OVERLAY_MARGIN;
   return { x, y };
 }
 
@@ -93,12 +97,9 @@ function createOverlayWindow(): BrowserWindow {
   const settings = loadSettings();
   const { x, y } = getOverlayPosition(settings);
 
-  const winWidth = 300;
-  const winHeight = 280;
-
   const win = new BrowserWindow({
-    width: winWidth,
-    height: winHeight,
+    width: OVERLAY_WIN_WIDTH,
+    height: OVERLAY_WIN_HEIGHT,
     x,
     y,
     frame: false,

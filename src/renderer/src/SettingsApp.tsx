@@ -76,8 +76,10 @@ export const SettingsApp: React.FC = () => {
         </select>
       </div>
 
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ marginBottom: 6, fontSize: 14, fontWeight: 600 }}>表示位置</div>
+      <fieldset style={{ border: 'none', padding: 0, margin: '0 0 20px' }}>
+        <legend style={{ marginBottom: 6, fontSize: 14, fontWeight: 600, padding: 0 }}>
+          表示位置
+        </legend>
         <div style={{ display: 'flex', gap: 24 }}>
           {POSITION_OPTIONS.map((opt) => (
             <label
@@ -101,7 +103,7 @@ export const SettingsApp: React.FC = () => {
             </label>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       <div style={{ marginBottom: 24 }}>
         <label
