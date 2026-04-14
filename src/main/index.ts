@@ -61,7 +61,7 @@ if (app.isReady()) {
 }
 
 import { type BaseNotificationMonitor, createNotificationMonitor } from './notificationMonitor';
-import { loadSettings, saveSettings } from './settings';
+import { type AppSettings, loadSettings, saveSettings } from './settings';
 
 let overlayWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
@@ -79,18 +79,29 @@ function loadRenderer(win: BrowserWindow, hash?: string): void {
   }
 }
 
-function createOverlayWindow(): BrowserWindow {
-  const display = screen.getPrimaryDisplay();
-  const { width } = display.workAreaSize;
+const OVERLAY_WIN_WIDTH = 300;
+const OVERLAY_WIN_HEIGHT = 280;
+const OVERLAY_MARGIN = 16;
 
-  const winWidth = 300;
-  const winHeight = 280;
+function getOverlayPosition(settings: AppSettings): { x: number; y: number } {
+  const { x: workAreaX, y: workAreaY, width, height } = screen.getPrimaryDisplay().workArea;
+  const x = workAreaX + width - OVERLAY_WIN_WIDTH - OVERLAY_MARGIN;
+  const y =
+    settings.displayPosition === 'bottom-right'
+      ? workAreaY + height - OVERLAY_WIN_HEIGHT - OVERLAY_MARGIN
+      : workAreaY + OVERLAY_MARGIN;
+  return { x, y };
+}
+
+function createOverlayWindow(): BrowserWindow {
+  const settings = loadSettings();
+  const { x, y } = getOverlayPosition(settings);
 
   const win = new BrowserWindow({
-    width: winWidth,
-    height: winHeight,
-    x: width - winWidth - 16,
-    y: 16,
+    width: OVERLAY_WIN_WIDTH,
+    height: OVERLAY_WIN_HEIGHT,
+    x,
+    y,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -124,7 +135,7 @@ function createSettingsWindow(): void {
 
   settingsWindow = new BrowserWindow({
     width: 400,
-    height: 360,
+    height: 430,
     resizable: false,
     webPreferences: {
       preload: preloadPath,
@@ -258,9 +269,11 @@ app.whenReady().then(() => {
   createTray();
 
   ipcMain.handle('get-settings', () => loadSettings());
-  ipcMain.handle('save-settings', (_event, settings) => {
+  ipcMain.handle('save-settings', (_event, settings: AppSettings) => {
     saveSettings(settings);
     overlayWindow?.webContents.send('settings-changed', settings);
+    const { x, y } = getOverlayPosition(settings);
+    overlayWindow?.setPosition(x, y);
   });
 
   monitor = createNotificationMonitor();

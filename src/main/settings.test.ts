@@ -34,6 +34,7 @@ describe('loadSettings', () => {
     expect(loadSettings()).toEqual({
       characterFile: 'dance.json',
       displayDuration: 5000,
+      displayPosition: 'top-right',
     });
   });
 
@@ -42,6 +43,7 @@ describe('loadSettings', () => {
     expect(loadSettings()).toEqual({
       characterFile: 'dance.json',
       displayDuration: 5000,
+      displayPosition: 'top-right',
     });
   });
 
@@ -50,16 +52,22 @@ describe('loadSettings', () => {
     expect(loadSettings()).toEqual({
       characterFile: 'dance.json',
       displayDuration: 8000,
+      displayPosition: 'top-right',
     });
   });
 
   it('lets stored values override defaults entirely when all fields are set', () => {
     readFileSyncMock.mockReturnValue(
-      JSON.stringify({ characterFile: 'crab.json', displayDuration: 3000 }),
+      JSON.stringify({
+        characterFile: 'crab.json',
+        displayDuration: 3000,
+        displayPosition: 'bottom-right',
+      }),
     );
     expect(loadSettings()).toEqual({
       characterFile: 'crab.json',
       displayDuration: 3000,
+      displayPosition: 'bottom-right',
     });
   });
 });
@@ -70,12 +78,17 @@ describe('saveSettings', () => {
   });
 
   it('writes JSON to the settings path', () => {
-    saveSettings({ characterFile: 'dance.json', displayDuration: 5000 });
+    saveSettings({
+      characterFile: 'dance.json',
+      displayDuration: 5000,
+      displayPosition: 'top-right',
+    });
     expect(writeFileSyncMock).toHaveBeenCalledOnce();
     const [, payload] = writeFileSyncMock.mock.calls[0];
     expect(JSON.parse(payload as string)).toEqual({
       characterFile: 'dance.json',
       displayDuration: 5000,
+      displayPosition: 'top-right',
     });
   });
 });

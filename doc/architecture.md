@@ -62,7 +62,7 @@ native モジュール（`better-sqlite3` / `bplist-parser`）への依存を持
 | 項目 | 内容 |
 |---|---|
 | 保存先 | `app.getPath('userData')/settings.json` |
-| 保存項目 | `characterFile`（Lottie JSON ファイル名）、`displayDuration`（表示ミリ秒、デフォルト 5000） |
+| 保存項目 | `characterFile`（Lottie JSON ファイル名）、`displayDuration`（表示ミリ秒、デフォルト 5000）、`displayPosition`（`'top-right'` または `'bottom-right'`、デフォルト `'top-right'`） |
 | 読み込み | `loadSettings()` — ファイルが存在しない場合はデフォルト値を返す |
 | 保存 | `saveSettings(settings)` — JSON ファイルに同期書き込み |
 
@@ -167,6 +167,7 @@ FILETIME = (Unix seconds + 11644473600) × 10,000,000
 | `focusable` | `false` | フォーカスを奪わない |
 | `setIgnoreMouseEvents` | `true, { forward: true }` | クリックスルー対応 |
 | `visibleOnAllWorkspaces` | `true` (macOSのみ) | 全デスクトップ + フルスクリーンで表示 |
+| 表示位置 | `displayPosition` 設定に基づき起動時・設定変更時に計算 | 右上（デフォルト）または右下を選択可能 |
 
 ## IPC 通信
 
@@ -181,9 +182,9 @@ Renderer --[get-settings / save-settings]--> Preload --[ipcMain.handle]--> Main 
 | メソッド | 引数 | 戻り値 | 説明 |
 |---|---|---|---|
 | `onNotification(cb)` | `(data: { sender, body, appName? }) => void` | `() => void`（解除関数） | 通知受信リスナーを登録 |
-| `onSettingsChanged(cb)` | `(settings: { characterFile, displayDuration }) => void` | `() => void`（解除関数） | 設定変更リスナーを登録 |
-| `getSettings()` | — | `Promise<{ characterFile, displayDuration }>` | 現在の設定を取得 |
-| `saveSettings(settings)` | `{ characterFile, displayDuration }` | `Promise<void>` | 設定を保存 |
+| `onSettingsChanged(cb)` | `(settings: { characterFile, displayDuration, displayPosition }) => void` | `() => void`（解除関数） | 設定変更リスナーを登録 |
+| `getSettings()` | — | `Promise<{ characterFile, displayDuration, displayPosition }>` | 現在の設定を取得 |
+| `saveSettings(settings)` | `{ characterFile, displayDuration, displayPosition }` | `Promise<void>` | 設定を保存 |
 
 ## ネイティブモジュールの取り扱い
 
