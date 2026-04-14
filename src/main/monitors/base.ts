@@ -4,15 +4,20 @@ export interface NotificationData {
   sender: string;
   body: string;
   appName?: string;
+  dbId?: string;
+  unixMs?: number;
+  rawId?: string;
 }
 
 export interface LatestNotificationRecord {
   id: number;
   timestamp: string;
+  unixMs: number;
   sender: string;
   body: string;
   appName: string;
   rawId: string;
+  displayedByApp: boolean;
 }
 
 export function formatNotificationTimestamp(unixMs: number): string {

@@ -68,17 +68,26 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
         return true;
       });
 
-      const parsed = newRows
-        .map((row) => this.parseNotificationData(row.data))
-        .filter((p): p is NonNullable<typeof p> => p !== null);
+      const results = await Promise.all(
+        newRows.map(async (row) => {
+          const p = this.parseNotificationData(row.data);
+          if (p === null) return null;
+          const appName = await resolveAppName(p.bundleId);
+          return {
+            sender: p.sender,
+            body: p.body,
+            appName,
+            dbId: String(row.rec_id),
+            unixMs: (row.delivered_date + MacNotificationMonitor.CORE_DATA_EPOCH_OFFSET) * 1000,
+            rawId: p.bundleId,
+          };
+        }),
+      );
 
-      const appNames = await Promise.all(parsed.map((p) => resolveAppName(p.bundleId)));
-
-      for (let i = 0; i < parsed.length; i++) {
-        const { sender, body } = parsed[i];
-        const appName = appNames[i];
-        console.log('New notification:', appName, '-', sender, '-', body);
-        this.emit('notification', { sender, body, appName });
+      for (const n of results) {
+        if (n === null) continue;
+        console.log('New notification:', n.appName, '-', n.sender, '-', n.body);
+        this.emit('notification', n);
       }
 
       if (rows.length > 0) {
@@ -129,15 +138,18 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
         );
 
         const p = this.parseNotificationData(row.data);
+        const unixMs = (row.delivered_date + MacNotificationMonitor.CORE_DATA_EPOCH_OFFSET) * 1000;
         if (p !== null) {
           const appName = await resolveAppName(p.bundleId);
           return {
             id: row.rec_id,
             timestamp,
+            unixMs,
             sender: p.sender,
             body: p.body,
             appName,
             rawId: p.bundleId,
+            displayedByApp: false,
           };
         }
 
@@ -154,10 +166,12 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
         return {
           id: row.rec_id,
           timestamp,
+          unixMs,
           sender: '(不明)',
           body: '(パース失敗)',
           appName: bundleId || '(不明)',
           rawId: bundleId,
+          displayedByApp: false,
         };
       }),
     );
