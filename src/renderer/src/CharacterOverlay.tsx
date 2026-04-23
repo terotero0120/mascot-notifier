@@ -40,10 +40,6 @@ export const CharacterOverlay: React.FC = () => {
     clearTimeout(displayTimerRef.current);
     clearTimeout(fadeTimerRef.current);
 
-    if (data.dbId) {
-      window.electronAPI.notificationDisplayed(data.dbId).catch(() => {});
-    }
-
     setNotification(data);
     setVisible(true);
     setFading(false);
