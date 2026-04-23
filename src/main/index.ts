@@ -60,6 +60,7 @@ if (app.isReady()) {
   app.whenReady().then(initFileLogging);
 }
 
+import { addDisplayedNotification, getHistoryData } from './notificationHistory';
 import { type BaseNotificationMonitor, createNotificationMonitor } from './notificationMonitor';
 import { type AppSettings, loadSettings, saveSettings } from './settings';
 
@@ -127,16 +128,21 @@ function createOverlayWindow(): BrowserWindow {
   return win;
 }
 
-function createSettingsWindow(): void {
+type SettingsTab = 'settings' | 'history';
+
+function createSettingsWindow(initialTab: SettingsTab = 'settings'): void {
   if (settingsWindow) {
+    settingsWindow.webContents.send('navigate-tab', initialTab);
     settingsWindow.focus();
     return;
   }
 
   settingsWindow = new BrowserWindow({
-    width: 400,
-    height: 430,
-    resizable: false,
+    width: 480,
+    height: 600,
+    minWidth: 400,
+    minHeight: 500,
+    resizable: true,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -144,71 +150,11 @@ function createSettingsWindow(): void {
     },
   });
 
-  loadRenderer(settingsWindow, 'settings');
+  loadRenderer(settingsWindow, initialTab);
 
   settingsWindow.on('closed', () => {
     settingsWindow = null;
   });
-}
-
-async function handleFetchLatest(): Promise<void> {
-  if (!monitor) {
-    await dialog.showMessageBox({
-      type: 'info',
-      title: '最新10件を確認',
-      message: 'モニターが初期化されていません。',
-      buttons: ['OK'],
-    });
-    return;
-  }
-
-  try {
-    const records = await monitor.fetchLatest(10);
-
-    if (records.length === 0) {
-      await dialog.showMessageBox({
-        type: 'info',
-        title: '最新10件を確認',
-        message: '通知が見つかりませんでした。',
-        detail: 'データベースに通知が存在しないか、まだ記録されていません。',
-        buttons: ['閉じる'],
-      });
-      return;
-    }
-
-    const lines = records.map((r, i) => {
-      const num = String(i + 1).padStart(2, ' ');
-      const senderPart = r.sender !== r.appName ? ` - ${r.sender}` : '';
-      return `${num}. [${r.timestamp}] ${r.appName}${senderPart}\n    ${r.body}\n    (ID: ${r.id}, ${r.rawId})`;
-    });
-
-    await dialog.showMessageBox({
-      type: 'info',
-      title: `最新${records.length}件の通知`,
-      message: `データベースから取得した最新${records.length}件（新しい順）`,
-      detail: lines.join('\n\n'),
-      buttons: ['閉じる'],
-    });
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code ?? '';
-    const message = (err as Error).message ?? '';
-    const isPermission =
-      code === 'ENOENT' ||
-      code === 'EACCES' ||
-      code === 'SQLITE_CANTOPEN' ||
-      message.includes('unable to open database') ||
-      message.includes('directory does not exist');
-
-    await dialog.showMessageBox({
-      type: 'warning',
-      title: '最新10件を確認 - エラー',
-      message: isPermission
-        ? 'データベースにアクセスできませんでした。'
-        : '通知の取得中にエラーが発生しました。',
-      detail: isPermission ? 'フルディスクアクセス権限が必要な場合があります。' : message,
-      buttons: ['OK'],
-    });
-  }
 }
 
 function createTray(): void {
@@ -232,9 +178,9 @@ function createTray(): void {
       },
     },
     {
-      label: '最新10件を確認',
+      label: '最新30件を確認',
       click: () => {
-        void handleFetchLatest();
+        createSettingsWindow('history');
       },
     },
     { type: 'separator' },
@@ -275,6 +221,32 @@ app.whenReady().then(() => {
     const { x, y } = getOverlayPosition(settings);
     overlayWindow?.setPosition(x, y);
   });
+  ipcMain.handle('get-notification-history', async () => {
+    const dbRecords = monitor ? await monitor.fetchLatest(40) : [];
+    const dbIdSet = new Set(dbRecords.map((r) => String(r.id)));
+
+    const { displayedIds, historyOnly } = getHistoryData(dbIdSet);
+
+    const markedDbRecords = dbRecords.map((r) => ({
+      ...r,
+      displayedByApp: displayedIds.has(String(r.id)),
+    }));
+
+    const historyOnlyRecords = historyOnly.map((e) => ({
+      id: Number(e.dbId),
+      timestamp: e.timestamp,
+      unixMs: e.unixMs,
+      sender: e.sender,
+      body: e.body,
+      appName: e.appName,
+      rawId: e.rawId,
+      displayedByApp: true as const,
+    }));
+
+    return [...markedDbRecords, ...historyOnlyRecords]
+      .sort((a, b) => b.unixMs - a.unixMs)
+      .slice(0, 30);
+  });
 
   monitor = createNotificationMonitor();
   monitor.on('started', () => {
@@ -286,6 +258,7 @@ app.whenReady().then(() => {
   });
   monitor.on('notification', (notification) => {
     overlayWindow?.webContents.send('notification', notification);
+    addDisplayedNotification(notification);
   });
   monitor.on('permission-error', async () => {
     if (process.platform === 'darwin') {

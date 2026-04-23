@@ -74,22 +74,29 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
         return true;
       });
 
-      const parsed = newRows
-        .map((row) => {
+      const results = await Promise.all(
+        newRows.map(async (row) => {
           const payload = Buffer.isBuffer(row.Payload)
             ? row.Payload.toString('utf-8')
             : String(row.Payload);
-          return parseWindowsPayload(payload, row.PrimaryId);
-        })
-        .filter((p): p is NonNullable<typeof p> => p !== null);
+          const p = parseWindowsPayload(payload, row.PrimaryId);
+          if (p === null) return null;
+          const appName = await resolveAppName(p.appId);
+          return {
+            sender: p.sender,
+            body: p.body,
+            appName,
+            dbId: String(row.Id),
+            unixMs: fileTimeToUnixMs(row.ArrivalTime),
+            rawId: p.appId,
+          };
+        }),
+      );
 
-      const appNames = await Promise.all(parsed.map((p) => resolveAppName(p.appId)));
-
-      for (let i = 0; i < parsed.length; i++) {
-        const { sender, body, appId } = parsed[i];
-        const appName = appNames[i];
-        console.log('New notification:', appName, `(${appId})`, '-', sender, '-', body);
-        this.emit('notification', { sender, body, appName });
+      for (const n of results) {
+        if (n === null) continue;
+        console.log('New notification:', n.appName, `(${n.rawId})`, '-', n.sender, '-', n.body);
+        this.emit('notification', n);
       }
 
       if (rows.length > 0) {
@@ -154,19 +161,31 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
           ? row.Payload.toString('utf-8')
           : String(row.Payload);
         const p = parseWindowsPayload(payload, row.PrimaryId);
+        const unixMs = fileTimeToUnixMs(row.ArrivalTime);
         if (p !== null) {
           const appName = await resolveAppName(p.appId);
-          return { id: row.Id, timestamp, sender: p.sender, body: p.body, appName, rawId: p.appId };
+          return {
+            id: row.Id,
+            timestamp,
+            unixMs,
+            sender: p.sender,
+            body: p.body,
+            appName,
+            rawId: p.appId,
+            displayedByApp: false,
+          };
         }
 
         const appId = row.PrimaryId ?? '';
         return {
           id: row.Id,
           timestamp,
+          unixMs,
           sender: '(不明)',
           body: '(パース失敗)',
           appName: appId || '(不明)',
           rawId: appId,
+          displayedByApp: false,
         };
       }),
     );
