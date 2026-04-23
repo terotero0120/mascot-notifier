@@ -39,4 +39,5 @@ export interface ElectronAPI {
   getNotificationHistory: () => Promise<NotificationHistoryResponse>;
   onNavigateTab: (callback: (tab: SettingsTab) => void) => () => void;
   onHistoryWriteError: (callback: (hasError: boolean) => void) => () => void;
+  notificationDisplayed: (dbId: string) => Promise<void>;
 }

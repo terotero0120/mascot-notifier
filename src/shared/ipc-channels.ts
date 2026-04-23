@@ -6,4 +6,5 @@ export const IPC_CHANNELS = {
   GET_NOTIFICATION_HISTORY: 'get-notification-history',
   NAVIGATE_TAB: 'navigate-tab',
   HISTORY_WRITE_ERROR: 'history-write-error',
+  NOTIFICATION_DISPLAYED: 'notification-displayed',
 } as const;
