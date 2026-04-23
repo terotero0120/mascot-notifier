@@ -50,7 +50,10 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
   // メインプロセスからのタブ切り替えイベント
   useEffect(() => {
     return window.electronAPI.onNavigateTab((tab) => {
-      if (tab === 'settings' || tab === 'history') setActiveTab(tab as Tab);
+      if (tab === 'settings' || tab === 'history') {
+        setActiveTab(tab as Tab);
+        if (tab === 'history') setRefreshKey((k) => k + 1);
+      }
     });
   }, []);
 

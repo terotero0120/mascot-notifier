@@ -9,8 +9,9 @@ function createListener<T>(channel: string, callback: (data: T) => void): () => 
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  onNotification: (callback: (data: { sender: string; body: string; appName?: string }) => void) =>
-    createListener('notification', callback),
+  onNotification: (
+    callback: (data: { sender: string; body: string; appName?: string; dbId?: string }) => void,
+  ) => createListener('notification', callback),
   onSettingsChanged: (
     callback: (settings: {
       characterFile: string;
@@ -26,4 +27,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }) => ipcRenderer.invoke('save-settings', settings),
   getNotificationHistory: () => ipcRenderer.invoke('get-notification-history'),
   onNavigateTab: (callback: (tab: string) => void) => createListener('navigate-tab', callback),
+  notificationDisplayed: (dbId: string) => ipcRenderer.invoke('notification-displayed', dbId),
 });

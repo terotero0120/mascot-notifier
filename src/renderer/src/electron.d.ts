@@ -17,13 +17,14 @@ interface LatestNotificationRecord {
 
 interface ElectronAPI {
   onNotification: (
-    callback: (data: { sender: string; body: string; appName?: string }) => void,
+    callback: (data: { sender: string; body: string; appName?: string; dbId?: string }) => void,
   ) => () => void;
   onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void;
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: AppSettings) => Promise<void>;
   getNotificationHistory: () => Promise<LatestNotificationRecord[]>;
   onNavigateTab: (callback: (tab: string) => void) => () => void;
+  notificationDisplayed: (dbId: string) => Promise<void>;
 }
 
 interface Window {

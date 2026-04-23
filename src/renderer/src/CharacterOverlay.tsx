@@ -6,6 +6,7 @@ interface NotificationData {
   sender: string;
   body: string;
   appName?: string;
+  dbId?: string;
 }
 
 export const CharacterOverlay: React.FC = () => {
@@ -44,6 +45,10 @@ export const CharacterOverlay: React.FC = () => {
   const showNotification = useCallback((data: NotificationData) => {
     clearTimeout(displayTimerRef.current);
     clearTimeout(fadeTimerRef.current);
+
+    if (data.dbId) {
+      window.electronAPI.notificationDisplayed(data.dbId).catch(() => {});
+    }
 
     setNotification(data);
     setVisible(true);

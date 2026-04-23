@@ -61,13 +61,19 @@ if (app.isReady()) {
 }
 
 import { addDisplayedNotification, getHistoryData } from './notificationHistory';
-import { type BaseNotificationMonitor, createNotificationMonitor } from './notificationMonitor';
+import {
+  type BaseNotificationMonitor,
+  createNotificationMonitor,
+  type NotificationData,
+} from './notificationMonitor';
 import { type AppSettings, loadSettings, saveSettings } from './settings';
 
 let overlayWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let monitor: BaseNotificationMonitor | null = null;
+
+const pendingNotifications = new Map<string, NotificationData>();
 
 const preloadPath = path.join(__dirname, '../preload/index.js');
 const rendererHtmlPath = path.join(__dirname, '../renderer/index.html');
@@ -221,6 +227,13 @@ app.whenReady().then(() => {
     const { x, y } = getOverlayPosition(settings);
     overlayWindow?.setPosition(x, y);
   });
+  ipcMain.handle('notification-displayed', (_event, dbId: string) => {
+    const pending = pendingNotifications.get(dbId);
+    if (pending) {
+      addDisplayedNotification(pending);
+      pendingNotifications.delete(dbId);
+    }
+  });
   ipcMain.handle('get-notification-history', async () => {
     const dbRecords = monitor ? await monitor.fetchLatest(40) : [];
     const dbIdSet = new Set(dbRecords.map((r) => String(r.id)));
@@ -257,8 +270,10 @@ app.whenReady().then(() => {
     });
   });
   monitor.on('notification', (notification) => {
+    if (notification.dbId) {
+      pendingNotifications.set(notification.dbId, notification);
+    }
     overlayWindow?.webContents.send('notification', notification);
-    addDisplayedNotification(notification);
   });
   monitor.on('permission-error', async () => {
     if (process.platform === 'darwin') {

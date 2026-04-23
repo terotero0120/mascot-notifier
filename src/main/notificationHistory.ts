@@ -36,10 +36,15 @@ function getEntries(): DisplayedEntry[] {
   return cache;
 }
 
+let flushChain: Promise<void> = Promise.resolve();
+
 function flushAsync(): void {
-  fs.promises.writeFile(getHistoryPath(), JSON.stringify(cache ?? [])).catch((err) => {
-    console.error('Failed to save notification history:', err);
-  });
+  const snapshot = JSON.stringify(cache ?? []);
+  flushChain = flushChain
+    .then(() => fs.promises.writeFile(getHistoryPath(), snapshot))
+    .catch((err) => {
+      console.error('Failed to save notification history:', err);
+    });
 }
 
 export function addDisplayedNotification(data: {
