@@ -80,6 +80,7 @@ let settingsWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let monitor: BaseNotificationMonitor | null = null;
 
+const MAX_PENDING_NOTIFICATIONS = 50;
 const pendingNotifications = new Map<string, NotificationData>();
 
 const preloadPath = path.join(__dirname, '../preload/index.js');
@@ -287,6 +288,10 @@ app.whenReady().then(() => {
   monitor.on('notification', (notification) => {
     if (notification.dbId) {
       pendingNotifications.set(notification.dbId, notification);
+      if (pendingNotifications.size > MAX_PENDING_NOTIFICATIONS) {
+        const oldest = pendingNotifications.keys().next().value;
+        if (oldest !== undefined) pendingNotifications.delete(oldest);
+      }
     }
     overlayWindow?.webContents.send(IPC_CHANNELS.NOTIFICATION, notification);
   });
