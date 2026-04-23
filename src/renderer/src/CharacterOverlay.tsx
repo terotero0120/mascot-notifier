@@ -46,10 +46,6 @@ export const CharacterOverlay: React.FC = () => {
     clearTimeout(displayTimerRef.current);
     clearTimeout(fadeTimerRef.current);
 
-    if (data.dbId) {
-      window.electronAPI.notificationDisplayed(data.dbId).catch(() => {});
-    }
-
     setNotification(data);
     setVisible(true);
     setFading(false);
@@ -72,6 +68,13 @@ export const CharacterOverlay: React.FC = () => {
       clearTimeout(fadeTimerRef.current);
     };
   }, [showNotification]);
+
+  // React commit 後に ack — バッチで描画されなかった通知は ack されない
+  useEffect(() => {
+    if (notification?.dbId) {
+      window.electronAPI.notificationDisplayed(notification.dbId).catch(() => {});
+    }
+  }, [notification]);
 
   if (!visible || !notification) return null;
 
