@@ -17,7 +17,7 @@ vi.mock('node:fs', () => ({
 }));
 
 // Import after mocks are set up.
-import { loadSettings, saveSettings } from './settings';
+import { loadSettings, saveSettings, validateSettings } from './settings';
 
 describe('loadSettings', () => {
   beforeEach(() => {
@@ -86,6 +86,76 @@ describe('saveSettings', () => {
     expect(writeFileSyncMock).toHaveBeenCalledOnce();
     const [, payload] = writeFileSyncMock.mock.calls[0];
     expect(JSON.parse(payload as string)).toEqual({
+      characterFile: 'dance.json',
+      displayDuration: 5000,
+      displayPosition: 'top-right',
+    });
+  });
+
+  it('throws when characterFile is not in the allowed list', () => {
+    expect(() =>
+      saveSettings({
+        characterFile: '../../malicious.json',
+        displayDuration: 5000,
+        displayPosition: 'top-right',
+      }),
+    ).toThrow('Invalid characterFile');
+  });
+});
+
+describe('validateSettings', () => {
+  it('returns valid settings unchanged', () => {
+    expect(
+      validateSettings({
+        characterFile: 'crab.json',
+        displayDuration: 3000,
+        displayPosition: 'bottom-right',
+      }),
+    ).toEqual({
+      characterFile: 'crab.json',
+      displayDuration: 3000,
+      displayPosition: 'bottom-right',
+    });
+  });
+
+  it('falls back to default characterFile for path traversal attempt', () => {
+    expect(validateSettings({ characterFile: '../../etc/passwd' })).toMatchObject({
+      characterFile: 'dance.json',
+    });
+  });
+
+  it('falls back to default characterFile for unknown file', () => {
+    expect(validateSettings({ characterFile: 'custom.json' })).toMatchObject({
+      characterFile: 'dance.json',
+    });
+  });
+
+  it('clamps displayDuration below 1000 to 1000', () => {
+    expect(validateSettings({ displayDuration: 100 })).toMatchObject({
+      displayDuration: 1000,
+    });
+  });
+
+  it('clamps displayDuration above 60000 to 60000', () => {
+    expect(validateSettings({ displayDuration: 999999 })).toMatchObject({
+      displayDuration: 60000,
+    });
+  });
+
+  it('falls back to default displayDuration for non-number', () => {
+    expect(validateSettings({ displayDuration: 'fast' })).toMatchObject({
+      displayDuration: 5000,
+    });
+  });
+
+  it('falls back to default displayPosition for invalid value', () => {
+    expect(validateSettings({ displayPosition: 'center' })).toMatchObject({
+      displayPosition: 'top-right',
+    });
+  });
+
+  it('fills missing fields with defaults', () => {
+    expect(validateSettings({})).toEqual({
       characterFile: 'dance.json',
       displayDuration: 5000,
       displayPosition: 'top-right',
