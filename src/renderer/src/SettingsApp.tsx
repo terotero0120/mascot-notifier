@@ -19,7 +19,7 @@ type Tab = 'settings' | 'history';
 type HistoryState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'success'; records: LatestNotificationRecord[] }
+  | { status: 'success'; records: LatestNotificationRecord[]; writeError: boolean }
   | { status: 'error'; message: string };
 
 interface SettingsAppProps {
@@ -62,7 +62,9 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
     setHistoryState({ status: 'loading' });
     window.electronAPI
       .getNotificationHistory()
-      .then((records) => setHistoryState({ status: 'success', records }))
+      .then(({ records, writeError }) =>
+        setHistoryState({ status: 'success', records, writeError }),
+      )
       .catch((err) => setHistoryState({ status: 'error', message: String(err) }));
   }, [activeTab, refreshKey]);
 
@@ -279,6 +281,21 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
           </div>
 
           <div style={{ overflowY: 'auto', flex: 1 }}>
+            {historyState.status === 'success' && historyState.writeError && (
+              <div
+                style={{
+                  padding: '6px 12px',
+                  marginBottom: 8,
+                  borderRadius: 4,
+                  background: '#FFF3E0',
+                  color: '#E65100',
+                  fontSize: 12,
+                }}
+              >
+                履歴の保存に失敗しました
+              </div>
+            )}
+
             {historyState.status === 'loading' && (
               <div style={{ textAlign: 'center', color: '#999', padding: 32, fontSize: 14 }}>
                 読み込み中...

@@ -22,7 +22,10 @@ interface ElectronAPI {
   onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void;
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: AppSettings) => Promise<void>;
-  getNotificationHistory: () => Promise<LatestNotificationRecord[]>;
+  getNotificationHistory: () => Promise<{
+    records: LatestNotificationRecord[];
+    writeError: boolean;
+  }>;
   onNavigateTab: (callback: (tab: string) => void) => () => void;
 }
 

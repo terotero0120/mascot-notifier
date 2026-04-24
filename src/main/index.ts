@@ -225,7 +225,7 @@ app.whenReady().then(() => {
     const dbRecords = monitor ? await monitor.fetchLatest(40) : [];
     const dbIdSet = new Set(dbRecords.map((r) => String(r.id)));
 
-    const { displayedIds, historyOnly } = getHistoryData(dbIdSet);
+    const { displayedIds, historyOnly, writeError } = getHistoryData(dbIdSet);
 
     const markedDbRecords = dbRecords.map((r) => ({
       ...r,
@@ -243,9 +243,12 @@ app.whenReady().then(() => {
       displayedByApp: true as const,
     }));
 
-    return [...markedDbRecords, ...historyOnlyRecords]
-      .sort((a, b) => b.unixMs - a.unixMs)
-      .slice(0, 30);
+    return {
+      records: [...markedDbRecords, ...historyOnlyRecords]
+        .sort((a, b) => b.unixMs - a.unixMs)
+        .slice(0, 30),
+      writeError,
+    };
   });
 
   monitor = createNotificationMonitor();
