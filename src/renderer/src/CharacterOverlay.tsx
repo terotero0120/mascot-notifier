@@ -1,12 +1,7 @@
 import Lottie from 'lottie-react';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-
-interface NotificationData {
-  sender: string;
-  body: string;
-  appName?: string;
-}
+import type { AppSettings, NotificationData } from '../../shared/types';
 
 export const CharacterOverlay: React.FC = () => {
   const [notification, setNotification] = useState<NotificationData | null>(null);
