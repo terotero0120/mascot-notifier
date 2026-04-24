@@ -216,9 +216,9 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-settings', () => loadSettings());
   ipcMain.handle('save-settings', (_event, settings: AppSettings) => {
-    saveSettings(settings);
-    overlayWindow?.webContents.send('settings-changed', settings);
-    const { x, y } = getOverlayPosition(settings);
+    const validated = saveSettings(settings);
+    overlayWindow?.webContents.send('settings-changed', validated);
+    const { x, y } = getOverlayPosition(validated);
     overlayWindow?.setPosition(x, y);
   });
   ipcMain.handle('get-notification-history', async () => {

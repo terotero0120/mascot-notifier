@@ -52,10 +52,11 @@ export function loadSettings(): AppSettings {
   }
 }
 
-export function saveSettings(settings: AppSettings): void {
+export function saveSettings(settings: AppSettings): AppSettings {
   if (!ALLOWED_CHARACTER_FILES.includes(settings.characterFile)) {
     throw new Error(`Invalid characterFile: ${settings.characterFile}`);
   }
   const validated = validateSettings(settings);
   fs.writeFileSync(settingsPath(), JSON.stringify(validated, null, 2), 'utf-8');
+  return validated;
 }
