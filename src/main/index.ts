@@ -60,7 +60,11 @@ if (app.isReady()) {
   app.whenReady().then(initFileLogging);
 }
 
-import { addDisplayedNotification, getHistoryData } from './notificationHistory';
+import {
+  addDisplayedNotification,
+  getHistoryData,
+  setWriteErrorCallback,
+} from './notificationHistory';
 import { type BaseNotificationMonitor, createNotificationMonitor } from './notificationMonitor';
 import { type AppSettings, loadSettings, saveSettings } from './settings';
 
@@ -213,6 +217,10 @@ function createTray(): void {
 app.whenReady().then(() => {
   overlayWindow = createOverlayWindow();
   createTray();
+
+  setWriteErrorCallback((hasError) => {
+    settingsWindow?.webContents.send('history-write-error', hasError);
+  });
 
   ipcMain.handle('get-settings', () => loadSettings());
   ipcMain.handle('save-settings', (_event, settings: AppSettings) => {

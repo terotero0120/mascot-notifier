@@ -27,6 +27,7 @@ interface ElectronAPI {
     writeError: boolean;
   }>;
   onNavigateTab: (callback: (tab: string) => void) => () => void;
+  onHistoryWriteError: (callback: (hasError: boolean) => void) => () => void;
 }
 
 interface Window {

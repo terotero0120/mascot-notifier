@@ -26,4 +26,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }) => ipcRenderer.invoke('save-settings', settings),
   getNotificationHistory: () => ipcRenderer.invoke('get-notification-history'),
   onNavigateTab: (callback: (tab: string) => void) => createListener('navigate-tab', callback),
+  onHistoryWriteError: (callback: (hasError: boolean) => void) =>
+    createListener('history-write-error', callback),
 });

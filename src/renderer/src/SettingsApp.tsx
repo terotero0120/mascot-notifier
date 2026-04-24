@@ -68,6 +68,15 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
       .catch((err) => setHistoryState({ status: 'error', message: String(err) }));
   }, [activeTab, refreshKey]);
 
+  // 書き込みエラーのリアルタイム反映
+  useEffect(() => {
+    return window.electronAPI.onHistoryWriteError((hasError) => {
+      setHistoryState((prev) =>
+        prev.status === 'success' ? { ...prev, writeError: hasError } : prev,
+      );
+    });
+  }, []);
+
   const isInvalid = displayDuration < MIN_DURATION || displayDuration > MAX_DURATION;
 
   const handleSave = async () => {
@@ -81,6 +90,7 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
       setSaveError(null);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
+      setSaved(false);
       setSaveError(String(err));
     }
   };

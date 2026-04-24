@@ -23,6 +23,11 @@ const MAX_ENTRIES = 200;
 let cache: DisplayedEntry[] | null = null;
 let writeChain: Promise<void> = Promise.resolve();
 let lastWriteError = false;
+let writeErrorCallback: ((hasError: boolean) => void) | null = null;
+
+export function setWriteErrorCallback(cb: (hasError: boolean) => void): void {
+  writeErrorCallback = cb;
+}
 
 function getHistoryPath(): string {
   return path.join(app.getPath('userData'), 'displayed-notifications.json');
@@ -49,9 +54,11 @@ function flushAsync(): void {
     .then(() => fs.promises.rename(tmp, target))
     .then(() => {
       lastWriteError = false;
+      writeErrorCallback?.(false);
     })
     .catch((err) => {
       lastWriteError = true;
+      writeErrorCallback?.(true);
       console.error('Failed to save notification history:', err);
     });
 }
@@ -104,4 +111,5 @@ export function _resetStateForTesting(): void {
   cache = null;
   writeChain = Promise.resolve();
   lastWriteError = false;
+  writeErrorCallback = null;
 }
