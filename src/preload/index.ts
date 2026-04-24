@@ -1,4 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { IPC_CHANNELS } from '../shared/ipc-channels';
+import type { AppSettings, NotificationData, SettingsTab } from '../shared/types';
 
 function createListener<T>(channel: string, callback: (data: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, data: T) => callback(data);
@@ -9,23 +11,15 @@ function createListener<T>(channel: string, callback: (data: T) => void): () => 
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  onNotification: (callback: (data: { sender: string; body: string; appName?: string }) => void) =>
-    createListener('notification', callback),
-  onSettingsChanged: (
-    callback: (settings: {
-      characterFile: string;
-      displayDuration: number;
-      displayPosition: 'top-right' | 'bottom-right';
-    }) => void,
-  ) => createListener('settings-changed', callback),
-  getSettings: () => ipcRenderer.invoke('get-settings'),
-  saveSettings: (settings: {
-    characterFile: string;
-    displayDuration: number;
-    displayPosition: 'top-right' | 'bottom-right';
-  }) => ipcRenderer.invoke('save-settings', settings),
-  getNotificationHistory: () => ipcRenderer.invoke('get-notification-history'),
-  onNavigateTab: (callback: (tab: string) => void) => createListener('navigate-tab', callback),
+  onNotification: (callback: (data: NotificationData) => void) =>
+    createListener(IPC_CHANNELS.NOTIFICATION, callback),
+  onSettingsChanged: (callback: (settings: AppSettings) => void) =>
+    createListener(IPC_CHANNELS.SETTINGS_CHANGED, callback),
+  getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS),
+  saveSettings: (settings: AppSettings) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings),
+  getNotificationHistory: () => ipcRenderer.invoke(IPC_CHANNELS.GET_NOTIFICATION_HISTORY),
+  onNavigateTab: (callback: (tab: SettingsTab) => void) =>
+    createListener(IPC_CHANNELS.NAVIGATE_TAB, callback),
   onHistoryWriteError: (callback: (hasError: boolean) => void) =>
-    createListener('history-write-error', callback),
+    createListener(IPC_CHANNELS.HISTORY_WRITE_ERROR, callback),
 });
