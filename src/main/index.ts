@@ -60,13 +60,15 @@ if (app.isReady()) {
   app.whenReady().then(initFileLogging);
 }
 
+import { IPC_CHANNELS } from '../shared/ipc-channels';
+import type { AppSettings, SettingsTab } from '../shared/types';
 import {
   addDisplayedNotification,
   getHistoryData,
   setWriteErrorCallback,
 } from './notificationHistory';
 import { type BaseNotificationMonitor, createNotificationMonitor } from './notificationMonitor';
-import { type AppSettings, loadSettings, saveSettings } from './settings';
+import { loadSettings, saveSettings } from './settings';
 
 let overlayWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
@@ -132,11 +134,9 @@ function createOverlayWindow(): BrowserWindow {
   return win;
 }
 
-type SettingsTab = 'settings' | 'history';
-
 function createSettingsWindow(initialTab: SettingsTab = 'settings'): void {
   if (settingsWindow) {
-    settingsWindow.webContents.send('navigate-tab', initialTab);
+    settingsWindow.webContents.send(IPC_CHANNELS.NAVIGATE_TAB, initialTab);
     settingsWindow.focus();
     return;
   }
@@ -174,7 +174,7 @@ function createTray(): void {
     {
       label: 'テスト通知',
       click: () => {
-        overlayWindow?.webContents.send('notification', {
+        overlayWindow?.webContents.send(IPC_CHANNELS.NOTIFICATION, {
           sender: 'テスト送信者',
           body: 'これはテスト通知です！',
           appName: 'Mascot Notifier',
@@ -219,17 +219,17 @@ app.whenReady().then(() => {
   createTray();
 
   setWriteErrorCallback((hasError) => {
-    settingsWindow?.webContents.send('history-write-error', hasError);
+    settingsWindow?.webContents.send(IPC_CHANNELS.HISTORY_WRITE_ERROR, hasError);
   });
 
-  ipcMain.handle('get-settings', () => loadSettings());
-  ipcMain.handle('save-settings', (_event, settings: AppSettings) => {
+  ipcMain.handle(IPC_CHANNELS.GET_SETTINGS, () => loadSettings());
+  ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, (_event, settings: AppSettings) => {
     const validated = saveSettings(settings);
-    overlayWindow?.webContents.send('settings-changed', validated);
+    overlayWindow?.webContents.send(IPC_CHANNELS.SETTINGS_CHANGED, validated);
     const { x, y } = getOverlayPosition(validated);
     overlayWindow?.setPosition(x, y);
   });
-  ipcMain.handle('get-notification-history', async () => {
+  ipcMain.handle(IPC_CHANNELS.GET_NOTIFICATION_HISTORY, async () => {
     const dbRecords = monitor ? await monitor.fetchLatest(40) : [];
     const dbIdSet = new Set(dbRecords.map((r) => String(r.id)));
 
@@ -261,14 +261,14 @@ app.whenReady().then(() => {
 
   monitor = createNotificationMonitor();
   monitor.on('started', () => {
-    overlayWindow?.webContents.send('notification', {
+    overlayWindow?.webContents.send(IPC_CHANNELS.NOTIFICATION, {
       sender: 'Mascot Notifier',
       body: '起動しました！通知を監視しています。',
       appName: 'Mascot Notifier',
     });
   });
   monitor.on('notification', (notification) => {
-    overlayWindow?.webContents.send('notification', notification);
+    overlayWindow?.webContents.send(IPC_CHANNELS.NOTIFICATION, notification);
     addDisplayedNotification(notification);
   });
   monitor.on('permission-error', async () => {
