@@ -1,24 +1,7 @@
 import { EventEmitter } from 'node:events';
+import type { LatestNotificationRecord, NotificationData } from '../../shared/types';
 
-export interface NotificationData {
-  sender: string;
-  body: string;
-  appName?: string;
-  dbId?: string;
-  unixMs?: number;
-  rawId?: string;
-}
-
-export interface LatestNotificationRecord {
-  id: number;
-  timestamp: string;
-  unixMs: number;
-  sender: string;
-  body: string;
-  appName: string;
-  rawId: string;
-  displayedByApp: boolean;
-}
+export type { LatestNotificationRecord, NotificationData };
 
 export function formatNotificationTimestamp(unixMs: number): string {
   return new Date(unixMs).toLocaleString('ja-JP', {
