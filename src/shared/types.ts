@@ -37,6 +37,6 @@ export interface ElectronAPI {
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: AppSettings) => Promise<void>;
   getNotificationHistory: () => Promise<NotificationHistoryResponse>;
-  onNavigateTab: (callback: (tab: string) => void) => () => void;
+  onNavigateTab: (callback: (tab: SettingsTab) => void) => () => void;
   onHistoryWriteError: (callback: (hasError: boolean) => void) => () => void;
 }
