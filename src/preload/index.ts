@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/ipc-channels';
-import type { AppSettings, NotificationData, SettingsTab } from '../shared/types';
+import type { AppSettings, ElectronAPI, NotificationData, SettingsTab } from '../shared/types';
 
 function createListener<T>(channel: string, callback: (data: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, data: T) => callback(data);
@@ -10,7 +10,7 @@ function createListener<T>(channel: string, callback: (data: T) => void): () => 
   };
 }
 
-contextBridge.exposeInMainWorld('electronAPI', {
+const api: ElectronAPI = {
   onNotification: (callback: (data: NotificationData) => void) =>
     createListener(IPC_CHANNELS.NOTIFICATION, callback),
   onSettingsChanged: (callback: (settings: AppSettings) => void) =>
@@ -22,4 +22,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     createListener(IPC_CHANNELS.NAVIGATE_TAB, callback),
   onHistoryWriteError: (callback: (hasError: boolean) => void) =>
     createListener(IPC_CHANNELS.HISTORY_WRITE_ERROR, callback),
-});
+};
+
+contextBridge.exposeInMainWorld('electronAPI', api);
