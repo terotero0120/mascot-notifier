@@ -16,10 +16,18 @@ interface DisplayedEntry {
 export interface HistoryData {
   displayedIds: Set<string>;
   historyOnly: DisplayedEntry[];
+  writeError: boolean;
 }
 
 const MAX_ENTRIES = 200;
 let cache: DisplayedEntry[] | null = null;
+let writeChain: Promise<void> = Promise.resolve();
+let lastWriteError = false;
+let writeErrorCallback: ((hasError: boolean) => void) | null = null;
+
+export function setWriteErrorCallback(cb: (hasError: boolean) => void): void {
+  writeErrorCallback = cb;
+}
 
 function getHistoryPath(): string {
   return path.join(app.getPath('userData'), 'displayed-notifications.json');
@@ -37,9 +45,26 @@ function getEntries(): DisplayedEntry[] {
 }
 
 function flushAsync(): void {
-  fs.promises.writeFile(getHistoryPath(), JSON.stringify(cache ?? [])).catch((err) => {
-    console.error('Failed to save notification history:', err);
-  });
+  const snapshot = JSON.stringify(cache ?? []);
+  const target = getHistoryPath();
+  const tmp = `${target}.tmp`;
+
+  writeChain = writeChain
+    .then(() => fs.promises.writeFile(tmp, snapshot))
+    .then(() => fs.promises.rename(tmp, target))
+    .then(() => {
+      lastWriteError = false;
+      writeErrorCallback?.(false);
+    })
+    .catch((err) => {
+      lastWriteError = true;
+      writeErrorCallback?.(true);
+      console.error('Failed to save notification history:', err);
+    });
+}
+
+export function flushNotificationHistory(): Promise<void> {
+  return writeChain;
 }
 
 export function addDisplayedNotification(data: {
@@ -78,5 +103,13 @@ export function getHistoryData(dbIdSet: Set<string>): HistoryData {
   return {
     displayedIds: new Set(entries.map((e) => e.dbId)),
     historyOnly: entries.filter((e) => !dbIdSet.has(e.dbId)),
+    writeError: lastWriteError,
   };
+}
+
+export function _resetStateForTesting(): void {
+  cache = null;
+  writeChain = Promise.resolve();
+  lastWriteError = false;
+  writeErrorCallback = null;
 }

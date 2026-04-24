@@ -19,7 +19,7 @@ type Tab = 'settings' | 'history';
 type HistoryState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'success'; records: LatestNotificationRecord[] }
+  | { status: 'success'; records: LatestNotificationRecord[]; writeError: boolean }
   | { status: 'error'; message: string };
 
 interface SettingsAppProps {
@@ -34,6 +34,7 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
   const [displayDuration, setDisplayDuration] = useState(5);
   const [displayPosition, setDisplayPosition] = useState<'top-right' | 'bottom-right'>('top-right');
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // 通知履歴タブ
   const [historyState, setHistoryState] = useState<HistoryState>({ status: 'idle' });
@@ -61,20 +62,37 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
     setHistoryState({ status: 'loading' });
     window.electronAPI
       .getNotificationHistory()
-      .then((records) => setHistoryState({ status: 'success', records }))
+      .then(({ records, writeError }) =>
+        setHistoryState({ status: 'success', records, writeError }),
+      )
       .catch((err) => setHistoryState({ status: 'error', message: String(err) }));
   }, [activeTab, refreshKey]);
+
+  // 書き込みエラーのリアルタイム反映
+  useEffect(() => {
+    return window.electronAPI.onHistoryWriteError((hasError) => {
+      setHistoryState((prev) =>
+        prev.status === 'success' ? { ...prev, writeError: hasError } : prev,
+      );
+    });
+  }, []);
 
   const isInvalid = displayDuration < MIN_DURATION || displayDuration > MAX_DURATION;
 
   const handleSave = async () => {
-    await window.electronAPI.saveSettings({
-      characterFile,
-      displayDuration: displayDuration * 1000,
-      displayPosition,
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await window.electronAPI.saveSettings({
+        characterFile,
+        displayDuration: displayDuration * 1000,
+        displayPosition,
+      });
+      setSaved(true);
+      setSaveError(null);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setSaved(false);
+      setSaveError(String(err));
+    }
   };
 
   return (
@@ -227,6 +245,10 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
           {saved && (
             <span style={{ marginLeft: 12, fontSize: 14, color: '#4CAF50' }}>保存しました</span>
           )}
+
+          {saveError && (
+            <div style={{ marginTop: 8, fontSize: 13, color: '#e53935' }}>{saveError}</div>
+          )}
         </div>
       )}
 
@@ -269,6 +291,21 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
           </div>
 
           <div style={{ overflowY: 'auto', flex: 1 }}>
+            {historyState.status === 'success' && historyState.writeError && (
+              <div
+                style={{
+                  padding: '6px 12px',
+                  marginBottom: 8,
+                  borderRadius: 4,
+                  background: '#FFF3E0',
+                  color: '#E65100',
+                  fontSize: 12,
+                }}
+              >
+                履歴の保存に失敗しました
+              </div>
+            )}
+
             {historyState.status === 'loading' && (
               <div style={{ textAlign: 'center', color: '#999', padding: 32, fontSize: 14 }}>
                 読み込み中...

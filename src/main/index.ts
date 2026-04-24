@@ -60,7 +60,11 @@ if (app.isReady()) {
   app.whenReady().then(initFileLogging);
 }
 
-import { addDisplayedNotification, getHistoryData } from './notificationHistory';
+import {
+  addDisplayedNotification,
+  getHistoryData,
+  setWriteErrorCallback,
+} from './notificationHistory';
 import { type BaseNotificationMonitor, createNotificationMonitor } from './notificationMonitor';
 import { type AppSettings, loadSettings, saveSettings } from './settings';
 
@@ -214,18 +218,22 @@ app.whenReady().then(() => {
   overlayWindow = createOverlayWindow();
   createTray();
 
+  setWriteErrorCallback((hasError) => {
+    settingsWindow?.webContents.send('history-write-error', hasError);
+  });
+
   ipcMain.handle('get-settings', () => loadSettings());
   ipcMain.handle('save-settings', (_event, settings: AppSettings) => {
-    saveSettings(settings);
-    overlayWindow?.webContents.send('settings-changed', settings);
-    const { x, y } = getOverlayPosition(settings);
+    const validated = saveSettings(settings);
+    overlayWindow?.webContents.send('settings-changed', validated);
+    const { x, y } = getOverlayPosition(validated);
     overlayWindow?.setPosition(x, y);
   });
   ipcMain.handle('get-notification-history', async () => {
     const dbRecords = monitor ? await monitor.fetchLatest(40) : [];
     const dbIdSet = new Set(dbRecords.map((r) => String(r.id)));
 
-    const { displayedIds, historyOnly } = getHistoryData(dbIdSet);
+    const { displayedIds, historyOnly, writeError } = getHistoryData(dbIdSet);
 
     const markedDbRecords = dbRecords.map((r) => ({
       ...r,
@@ -243,9 +251,12 @@ app.whenReady().then(() => {
       displayedByApp: true as const,
     }));
 
-    return [...markedDbRecords, ...historyOnlyRecords]
-      .sort((a, b) => b.unixMs - a.unixMs)
-      .slice(0, 30);
+    return {
+      records: [...markedDbRecords, ...historyOnlyRecords]
+        .sort((a, b) => b.unixMs - a.unixMs)
+        .slice(0, 30),
+      writeError,
+    };
   });
 
   monitor = createNotificationMonitor();
