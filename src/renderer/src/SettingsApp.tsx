@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import type { LatestNotificationRecord, SettingsTab as Tab } from '../../shared/types';
 
 const CHARACTER_OPTIONS = [
   { label: 'ダンス', value: 'dance.json' },
@@ -13,8 +14,6 @@ const POSITION_OPTIONS: { label: string; value: 'top-right' | 'bottom-right' }[]
 
 const MIN_DURATION = 1;
 const MAX_DURATION = 10;
-
-type Tab = 'settings' | 'history';
 
 type HistoryState =
   | { status: 'idle' }
