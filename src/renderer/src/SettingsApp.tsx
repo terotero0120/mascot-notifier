@@ -1,13 +1,13 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import type { LatestNotificationRecord, SettingsTab as Tab } from '../../shared/types';
+import type { AppSettings, LatestNotificationRecord, SettingsTab as Tab } from '../../shared/types';
 
 const CHARACTER_OPTIONS = [
   { label: 'ダンス', value: 'dance.json' },
   { label: 'カニ', value: 'crab.json' },
 ];
 
-const POSITION_OPTIONS: { label: string; value: 'top-right' | 'bottom-right' }[] = [
+const POSITION_OPTIONS: { label: string; value: AppSettings['displayPosition'] }[] = [
   { label: '右上', value: 'top-right' },
   { label: '右下', value: 'bottom-right' },
 ];
@@ -31,7 +31,8 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
   // 設定タブ
   const [characterFile, setCharacterFile] = useState('dance.json');
   const [displayDuration, setDisplayDuration] = useState(5);
-  const [displayPosition, setDisplayPosition] = useState<'top-right' | 'bottom-right'>('top-right');
+  const [displayPosition, setDisplayPosition] =
+    useState<AppSettings['displayPosition']>('top-right');
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
