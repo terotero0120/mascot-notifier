@@ -34,6 +34,7 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
   const [displayDuration, setDisplayDuration] = useState(5);
   const [displayPosition, setDisplayPosition] = useState<'top-right' | 'bottom-right'>('top-right');
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // 通知履歴タブ
   const [historyState, setHistoryState] = useState<HistoryState>({ status: 'idle' });
@@ -68,13 +69,18 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
   const isInvalid = displayDuration < MIN_DURATION || displayDuration > MAX_DURATION;
 
   const handleSave = async () => {
-    await window.electronAPI.saveSettings({
-      characterFile,
-      displayDuration: displayDuration * 1000,
-      displayPosition,
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await window.electronAPI.saveSettings({
+        characterFile,
+        displayDuration: displayDuration * 1000,
+        displayPosition,
+      });
+      setSaved(true);
+      setSaveError(null);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setSaveError(String(err));
+    }
   };
 
   return (
@@ -226,6 +232,10 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
 
           {saved && (
             <span style={{ marginLeft: 12, fontSize: 14, color: '#4CAF50' }}>保存しました</span>
+          )}
+
+          {saveError && (
+            <div style={{ marginTop: 8, fontSize: 13, color: '#e53935' }}>{saveError}</div>
           )}
         </div>
       )}
