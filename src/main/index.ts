@@ -61,7 +61,7 @@ if (app.isReady()) {
 }
 
 import { IPC_CHANNELS } from '../shared/ipc-channels';
-import type { AppSettings, SettingsTab } from '../shared/types';
+import type { AppSettings, NotificationHistoryResponse, SettingsTab } from '../shared/types';
 import {
   addDisplayedNotification,
   getHistoryData,
@@ -229,35 +229,38 @@ app.whenReady().then(() => {
     const { x, y } = getOverlayPosition(validated);
     overlayWindow?.setPosition(x, y);
   });
-  ipcMain.handle(IPC_CHANNELS.GET_NOTIFICATION_HISTORY, async () => {
-    const dbRecords = monitor ? await monitor.fetchLatest(40) : [];
-    const dbIdSet = new Set(dbRecords.map((r) => String(r.id)));
+  ipcMain.handle(
+    IPC_CHANNELS.GET_NOTIFICATION_HISTORY,
+    async (): Promise<NotificationHistoryResponse> => {
+      const dbRecords = monitor ? await monitor.fetchLatest(40) : [];
+      const dbIdSet = new Set(dbRecords.map((r) => String(r.id)));
 
-    const { displayedIds, historyOnly, writeError } = getHistoryData(dbIdSet);
+      const { displayedIds, historyOnly, writeError } = getHistoryData(dbIdSet);
 
-    const markedDbRecords = dbRecords.map((r) => ({
-      ...r,
-      displayedByApp: displayedIds.has(String(r.id)),
-    }));
+      const markedDbRecords = dbRecords.map((r) => ({
+        ...r,
+        displayedByApp: displayedIds.has(String(r.id)),
+      }));
 
-    const historyOnlyRecords = historyOnly.map((e) => ({
-      id: Number(e.dbId),
-      timestamp: e.timestamp,
-      unixMs: e.unixMs,
-      sender: e.sender,
-      body: e.body,
-      appName: e.appName,
-      rawId: e.rawId,
-      displayedByApp: true as const,
-    }));
+      const historyOnlyRecords = historyOnly.map((e) => ({
+        id: Number(e.dbId),
+        timestamp: e.timestamp,
+        unixMs: e.unixMs,
+        sender: e.sender,
+        body: e.body,
+        appName: e.appName,
+        rawId: e.rawId,
+        displayedByApp: true as const,
+      }));
 
-    return {
-      records: [...markedDbRecords, ...historyOnlyRecords]
-        .sort((a, b) => b.unixMs - a.unixMs)
-        .slice(0, 30),
-      writeError,
-    };
-  });
+      return {
+        records: [...markedDbRecords, ...historyOnlyRecords]
+          .sort((a, b) => b.unixMs - a.unixMs)
+          .slice(0, 30),
+        writeError,
+      };
+    },
+  );
 
   monitor = createNotificationMonitor();
   monitor.on('started', () => {
