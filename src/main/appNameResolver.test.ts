@@ -77,10 +77,15 @@ describe('resolveAppNameWin', () => {
     expect(resolveAppNameWin('SomePrefix!https://chat.google.com/messages')).toBe('Google Chat');
   });
 
-  it('returns the second-level domain when host is not a known PWA', () => {
-    expect(resolveAppNameWin('SomePrefix!https://example.co.jp/foo')).toBe('co');
-    // Note: the function takes parts.length - 2, so for example.com it returns "example"
+  it('returns the registrable domain label when host is not a known PWA', () => {
+    expect(resolveAppNameWin('SomePrefix!https://example.co.jp/foo')).toBe('example');
     expect(resolveAppNameWin('SomePrefix!https://example.com/foo')).toBe('example');
+    expect(resolveAppNameWin('SomePrefix!https://www.example.co.jp/foo')).toBe('example');
+  });
+
+  it('returns the app slug for PWAs hosted on private PSL domains', () => {
+    expect(resolveAppNameWin('SomePrefix!https://my-app.vercel.app/')).toBe('my-app');
+    expect(resolveAppNameWin('SomePrefix!https://foo.github.io/')).toBe('foo');
   });
 
   it('falls back to descriptive segment for package-style ids', () => {

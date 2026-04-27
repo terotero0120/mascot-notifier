@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { parse as parseTld } from 'tldts';
 
 const execFileAsync = promisify(execFile);
 
@@ -114,8 +115,8 @@ export function resolveAppNameWin(appId: string): string {
         const url = new URL(afterExcl);
         const pwaName = KNOWN_PWA_HOSTS[url.hostname];
         if (pwaName) return pwaName;
-        const hostParts = url.hostname.split('.');
-        return hostParts.length >= 2 ? hostParts[hostParts.length - 2] : url.hostname;
+        const parsed = parseTld(url.hostname, { allowPrivateDomains: true });
+        return parsed.domainWithoutSuffix || url.hostname;
       } catch {
         // malformed URL, fall through
       }
