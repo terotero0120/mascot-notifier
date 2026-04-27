@@ -19,7 +19,7 @@ export interface HistoryData {
   writeError: boolean;
 }
 
-const MAX_ENTRIES = 200;
+const MAX_ENTRIES = 30;
 let cache: DisplayedEntry[] | null = null;
 let writeChain: Promise<void> = Promise.resolve();
 let lastWriteError = false;

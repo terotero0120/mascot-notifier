@@ -305,8 +305,7 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
               flexShrink: 0,
             }}
           >
-            通知履歴（最大200件）は送信者・通知本文・アプリ名を含む情報を端末上に平文で保存します。履歴を削除するには、アプリを終了してからアプリのデータフォルダ内の
-            displayed-notifications.json を削除してください。
+            通知履歴（最大30件）は送信者・通知本文・アプリ名を含む情報を端末上に平文で保存します。未通知の情報はOSの通知センターから取得しています。
           </div>
 
           <div style={{ overflowY: 'auto', flex: 1 }}>
