@@ -56,6 +56,7 @@ export const CharacterOverlay: React.FC = () => {
 
   useEffect(() => {
     const cleanup = window.electronAPI.onNotification(showNotification);
+    document.body.dataset.overlayReady = 'true';
     return () => {
       cleanup();
       clearTimeout(displayTimerRef.current);
