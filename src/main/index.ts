@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { inspect } from 'node:util';
 import {
@@ -52,6 +53,15 @@ function initFileLogging(): void {
     console.error('Failed to initialize file logging:', err);
     logStream = null;
   }
+}
+
+const IS_E2E = process.env.E2E_TEST === 'true';
+
+if (IS_E2E) {
+  const userDataPath =
+    process.env.E2E_USERDATA_PATH ?? path.join(os.tmpdir(), `mascot-e2e-${Date.now()}`);
+  fs.mkdirSync(userDataPath, { recursive: true });
+  app.setPath('userData', userDataPath);
 }
 
 if (app.isReady()) {
@@ -277,73 +287,79 @@ app.whenReady().then(() => {
     },
   );
 
-  monitor = createNotificationMonitor();
-  monitor.on('started', () => {
-    overlayWindow?.webContents.send(IPC_CHANNELS.NOTIFICATION, {
-      sender: 'Mascot Notifier',
-      body: '起動しました！通知を監視しています。',
-      appName: 'Mascot Notifier',
+  if (!IS_E2E || process.env.NOTIFICATION_DB_PATH) {
+    monitor = createNotificationMonitor();
+    monitor.on('started', () => {
+      overlayWindow?.webContents.send(IPC_CHANNELS.NOTIFICATION, {
+        sender: 'Mascot Notifier',
+        body: '起動しました！通知を監視しています。',
+        appName: 'Mascot Notifier',
+      });
     });
-  });
-  monitor.on('notification', (notification) => {
-    if (notification.dbId) {
-      pendingNotifications.set(notification.dbId, notification);
-      if (pendingNotifications.size > MAX_PENDING_NOTIFICATIONS) {
-        const oldest = pendingNotifications.keys().next().value;
-        if (oldest !== undefined) pendingNotifications.delete(oldest);
+    monitor.on('notification', (notification) => {
+      if (notification.dbId) {
+        pendingNotifications.set(notification.dbId, notification);
+        if (pendingNotifications.size > MAX_PENDING_NOTIFICATIONS) {
+          const oldest = pendingNotifications.keys().next().value;
+          if (oldest !== undefined) pendingNotifications.delete(oldest);
+        }
       }
-    }
-    overlayWindow?.webContents.send(IPC_CHANNELS.NOTIFICATION, notification);
-  });
-  monitor.on('permission-error', async () => {
-    if (process.platform === 'darwin') {
-      const { response } = await dialog.showMessageBox({
-        type: 'warning',
-        title: 'フルディスクアクセスが必要です',
-        message: 'macOS の通知を取得するために「フルディスクアクセス」権限が必要です。',
-        detail: [
-          '【必要な理由について】',
-          'このアプリは macOS の通知センターのデータベースを読み取ることで、各アプリの通知を検知しています。このデータベースへのアクセスに「フルディスクアクセス」が必要です。',
-          '',
-          '【安全性について】',
-          '• データベースは読み取り専用で開いており、変更・削除は一切行いません',
-          '• 通知データを外部に送信することはありません',
-          '• アプリはすべてローカルで動作します',
-          '',
-          '【設定手順】',
-          '1. 「システム設定を開く」をクリック',
-          '2. 「フルディスクアクセス」の一覧からこのアプリを許可',
-          '3. アプリを再起動',
-        ].join('\n'),
-        buttons: ['システム設定を開く', '後で設定する'],
-        defaultId: 0,
-      });
-      if (response === 0) {
-        shell.openExternal(
-          'x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles',
-        );
+      overlayWindow?.webContents.send(IPC_CHANNELS.NOTIFICATION, notification);
+    });
+    monitor.on('permission-error', async () => {
+      if (process.platform === 'darwin') {
+        const { response } = await dialog.showMessageBox({
+          type: 'warning',
+          title: 'フルディスクアクセスが必要です',
+          message: 'macOS の通知を取得するために「フルディスクアクセス」権限が必要です。',
+          detail: [
+            '【必要な理由について】',
+            'このアプリは macOS の通知センターのデータベースを読み取ることで、各アプリの通知を検知しています。このデータベースへのアクセスに「フルディスクアクセス」が必要です。',
+            '',
+            '【安全性について】',
+            '• データベースは読み取り専用で開いており、変更・削除は一切行いません',
+            '• 通知データを外部に送信することはありません',
+            '• アプリはすべてローカルで動作します',
+            '',
+            '【設定手順】',
+            '1. 「システム設定を開く」をクリック',
+            '2. 「フルディスクアクセス」の一覧からこのアプリを許可',
+            '3. アプリを再起動',
+          ].join('\n'),
+          buttons: ['システム設定を開く', '後で設定する'],
+          defaultId: 0,
+        });
+        if (response === 0) {
+          shell.openExternal(
+            'x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles',
+          );
+        }
+      } else if (process.platform === 'win32') {
+        const { response } = await dialog.showMessageBox({
+          type: 'warning',
+          title: '通知アクセスが必要です',
+          message: 'Windows の通知を取得するために「通知へのアクセス」権限が必要です。',
+          detail: [
+            '【設定手順】',
+            '1. 「設定を開く」をクリック',
+            '2. プライバシーとセキュリティ → 通知',
+            '3. このアプリの通知アクセスを許可',
+            '4. アプリを再起動',
+          ].join('\n'),
+          buttons: ['設定を開く', '後で設定する'],
+          defaultId: 0,
+        });
+        if (response === 0) {
+          shell.openExternal('ms-settings:privacy-notifications');
+        }
       }
-    } else if (process.platform === 'win32') {
-      const { response } = await dialog.showMessageBox({
-        type: 'warning',
-        title: '通知アクセスが必要です',
-        message: 'Windows の通知を取得するために「通知へのアクセス」権限が必要です。',
-        detail: [
-          '【設定手順】',
-          '1. 「設定を開く」をクリック',
-          '2. プライバシーとセキュリティ → 通知',
-          '3. このアプリの通知アクセスを許可',
-          '4. アプリを再起動',
-        ].join('\n'),
-        buttons: ['設定を開く', '後で設定する'],
-        defaultId: 0,
-      });
-      if (response === 0) {
-        shell.openExternal('ms-settings:privacy-notifications');
-      }
-    }
-  });
-  monitor.start();
+    });
+    monitor.start();
+  }
+
+  if (process.argv.includes('--open-settings')) {
+    createSettingsWindow();
+  }
 });
 
 app.on('window-all-closed', () => {
