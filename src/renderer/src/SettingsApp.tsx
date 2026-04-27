@@ -293,6 +293,22 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
             </button>
           </div>
 
+          <div
+            style={{
+              marginBottom: 12,
+              padding: '8px 12px',
+              borderRadius: 6,
+              background: '#F3F0FC',
+              fontSize: 12,
+              color: '#555',
+              lineHeight: 1.6,
+              flexShrink: 0,
+            }}
+          >
+            通知履歴（最大200件）は送信者・通知本文・アプリ名を含む情報を端末上に平文で保存します。履歴を削除するには、アプリを終了してからアプリのデータフォルダ内の
+            displayed-notifications.json を削除してください。
+          </div>
+
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {historyState.status === 'success' && historyState.writeError && (
               <div
