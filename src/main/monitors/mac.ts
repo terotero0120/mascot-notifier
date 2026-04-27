@@ -21,6 +21,9 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
   private dbPath: string | null = null;
 
   private static resolveDbPath(): string {
+    if (process.env.NOTIFICATION_DB_PATH) {
+      return process.env.NOTIFICATION_DB_PATH;
+    }
     const newPath = path.join(
       os.homedir(),
       'Library/Group Containers/group.com.apple.usernoted/db2/db',
