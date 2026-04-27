@@ -11,3 +11,19 @@ export async function launchApp(
     env: { ...process.env, E2E_TEST: 'true', ...extraEnv },
   });
 }
+
+export async function sendToOverlay(
+  app: ElectronApplication,
+  channel: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  await app.evaluate(
+    ({ webContents }, args) => {
+      webContents
+        .getAllWebContents()
+        .find((wc) => !wc.getURL().includes('#'))
+        ?.send(args.channel, args.data);
+    },
+    { channel, data },
+  );
+}
