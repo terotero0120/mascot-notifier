@@ -22,6 +22,8 @@ const api: ElectronAPI = {
     createListener(IPC_CHANNELS.NAVIGATE_TAB, callback),
   onHistoryWriteError: (callback: (hasError: boolean) => void) =>
     createListener(IPC_CHANNELS.HISTORY_WRITE_ERROR, callback),
+  notificationDisplayed: (dbId: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.NOTIFICATION_DISPLAYED, dbId),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

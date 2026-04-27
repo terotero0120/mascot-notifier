@@ -63,6 +63,13 @@ export const CharacterOverlay: React.FC = () => {
     };
   }, [showNotification]);
 
+  // React commit 後に ack — バッチで描画されなかった通知は ack されない
+  useEffect(() => {
+    if (notification?.dbId) {
+      window.electronAPI.notificationDisplayed(notification.dbId).catch(() => {});
+    }
+  }, [notification]);
+
   if (!visible || !notification) return null;
 
   return (

@@ -61,7 +61,12 @@ if (app.isReady()) {
 }
 
 import { IPC_CHANNELS } from '../shared/ipc-channels';
-import type { AppSettings, NotificationHistoryResponse, SettingsTab } from '../shared/types';
+import type {
+  AppSettings,
+  NotificationData,
+  NotificationHistoryResponse,
+  SettingsTab,
+} from '../shared/types';
 import {
   addDisplayedNotification,
   getHistoryData,
@@ -74,6 +79,9 @@ let overlayWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let monitor: BaseNotificationMonitor | null = null;
+
+const MAX_PENDING_NOTIFICATIONS = 50;
+const pendingNotifications = new Map<string, NotificationData>();
 
 const preloadPath = path.join(__dirname, '../preload/index.js');
 const rendererHtmlPath = path.join(__dirname, '../renderer/index.html');
@@ -229,6 +237,13 @@ app.whenReady().then(() => {
     const { x, y } = getOverlayPosition(validated);
     overlayWindow?.setPosition(x, y);
   });
+  ipcMain.handle(IPC_CHANNELS.NOTIFICATION_DISPLAYED, (_event, dbId: string) => {
+    const pending = pendingNotifications.get(dbId);
+    if (pending) {
+      addDisplayedNotification(pending);
+      pendingNotifications.delete(dbId);
+    }
+  });
   ipcMain.handle(
     IPC_CHANNELS.GET_NOTIFICATION_HISTORY,
     async (): Promise<NotificationHistoryResponse> => {
@@ -271,8 +286,14 @@ app.whenReady().then(() => {
     });
   });
   monitor.on('notification', (notification) => {
+    if (notification.dbId) {
+      pendingNotifications.set(notification.dbId, notification);
+      if (pendingNotifications.size > MAX_PENDING_NOTIFICATIONS) {
+        const oldest = pendingNotifications.keys().next().value;
+        if (oldest !== undefined) pendingNotifications.delete(oldest);
+      }
+    }
     overlayWindow?.webContents.send(IPC_CHANNELS.NOTIFICATION, notification);
-    addDisplayedNotification(notification);
   });
   monitor.on('permission-error', async () => {
     if (process.platform === 'darwin') {
