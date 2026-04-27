@@ -83,6 +83,11 @@ describe('resolveAppNameWin', () => {
     expect(resolveAppNameWin('SomePrefix!https://www.example.co.jp/foo')).toBe('example');
   });
 
+  it('returns the app slug for PWAs hosted on private PSL domains', () => {
+    expect(resolveAppNameWin('SomePrefix!https://my-app.vercel.app/')).toBe('my-app');
+    expect(resolveAppNameWin('SomePrefix!https://foo.github.io/')).toBe('foo');
+  });
+
   it('falls back to descriptive segment for package-style ids', () => {
     // "stable" is non-descriptive, so should pick the next meaningful segment
     expect(resolveAppNameWin('com.example.MyApp.stable')).toBe('MyApp');

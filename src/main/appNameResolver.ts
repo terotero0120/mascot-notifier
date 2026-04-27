@@ -115,8 +115,8 @@ export function resolveAppNameWin(appId: string): string {
         const url = new URL(afterExcl);
         const pwaName = KNOWN_PWA_HOSTS[url.hostname];
         if (pwaName) return pwaName;
-        const parsed = parseTld(url.hostname);
-        return parsed.domain?.split('.')[0] || url.hostname;
+        const parsed = parseTld(url.hostname, { allowPrivateDomains: true });
+        return parsed.domainWithoutSuffix || url.hostname;
       } catch {
         // malformed URL, fall through
       }
