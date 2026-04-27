@@ -10,8 +10,8 @@ export const CharacterOverlay: React.FC = () => {
   const [lottieData, setLottieData] = useState<object | null>(null);
   const [characterFile, setCharacterFile] = useState('dance.json');
   const displayDurationRef = useRef(5000);
-  const displayTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const fadeTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const displayTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const applySettings = useCallback((settings: AppSettings) => {
     setCharacterFile(settings.characterFile);
