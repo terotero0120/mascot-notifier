@@ -4,3 +4,5 @@ dist/
 *.js.map
 .DS_Store
 .worktrees/
+test-results/
+playwright-report/
