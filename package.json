@@ -60,7 +60,8 @@
   "dependencies": {
     "better-sqlite3": "^11.7.0",
     "bplist-parser": "^0.3.2",
-    "lottie-react": "^2.4.1"
+    "lottie-react": "^2.4.1",
+    "tldts": "^7.0.28"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
