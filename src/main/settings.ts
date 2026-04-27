@@ -1,12 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
-
-export interface AppSettings {
-  characterFile: string;
-  displayDuration: number;
-  displayPosition: 'top-right' | 'bottom-right';
-}
+import type { AppSettings } from '../shared/types';
 
 const DEFAULT_SETTINGS: AppSettings = {
   characterFile: 'dance.json',

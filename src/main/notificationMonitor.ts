@@ -2,7 +2,6 @@ import type { BaseNotificationMonitor } from './monitors/base';
 import { MacNotificationMonitor } from './monitors/mac';
 import { WindowsNotificationMonitor } from './monitors/windows';
 
-export type { LatestNotificationRecord, NotificationData } from './monitors/base';
 export type { BaseNotificationMonitor };
 
 export function createNotificationMonitor(): BaseNotificationMonitor {
