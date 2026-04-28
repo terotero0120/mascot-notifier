@@ -102,8 +102,6 @@ export function addDisplayedNotification(data: {
 }): void {
   if (!data.dbId) return;
 
-  // If reading the history file failed with a non-ENOENT error, skip mutation
-  // to avoid flushing an empty cache over existing on-disk history.
   const entries = getEntries();
   if (loadFailed) return;
 
