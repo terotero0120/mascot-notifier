@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => ({
   app: {
@@ -20,9 +20,16 @@ vi.mock('node:fs', () => ({
 import { loadSettings, saveSettings, validateSettings } from './settings';
 
 describe('loadSettings', () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     readFileSyncMock.mockReset();
     writeFileSyncMock.mockReset();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   it('returns defaults when the file does not exist', () => {
@@ -38,6 +45,16 @@ describe('loadSettings', () => {
     });
   });
 
+  it('does not log when the file does not exist (ENOENT is normal first-run)', () => {
+    readFileSyncMock.mockImplementation(() => {
+      const err = new Error('ENOENT');
+      (err as NodeJS.ErrnoException).code = 'ENOENT';
+      throw err;
+    });
+    loadSettings();
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+  });
+
   it('returns defaults when the file contains invalid JSON', () => {
     readFileSyncMock.mockReturnValue('not-json');
     expect(loadSettings()).toEqual({
@@ -45,6 +62,28 @@ describe('loadSettings', () => {
       displayDuration: 5000,
       displayPosition: 'top-right',
     });
+  });
+
+  it('logs an error when the file contains invalid JSON', () => {
+    readFileSyncMock.mockReturnValue('not-json');
+    loadSettings();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to load settings:',
+      expect.any(SyntaxError),
+    );
+  });
+
+  it('logs an error on non-ENOENT I/O errors', () => {
+    readFileSyncMock.mockImplementation(() => {
+      const err = new Error('EACCES');
+      (err as NodeJS.ErrnoException).code = 'EACCES';
+      throw err;
+    });
+    loadSettings();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to load settings:',
+      expect.objectContaining({ message: 'EACCES' }),
+    );
   });
 
   it('merges defaults with the stored values', () => {
