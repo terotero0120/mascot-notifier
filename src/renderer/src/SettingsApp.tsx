@@ -1,6 +1,12 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import type { AppSettings, LatestNotificationRecord, SettingsTab as Tab } from '../../shared/types';
+import {
+  type AppSettings,
+  DURATION_MAX_MS,
+  DURATION_MIN_MS,
+  type LatestNotificationRecord,
+  type SettingsTab as Tab,
+} from '../../shared/types';
 
 const CHARACTER_OPTIONS = [
   { label: 'ダンス', value: 'dance.json' },
@@ -12,8 +18,8 @@ const POSITION_OPTIONS: { label: string; value: AppSettings['displayPosition'] }
   { label: '右下', value: 'bottom-right' },
 ];
 
-const MIN_DURATION = 1;
-const MAX_DURATION = 10;
+const MIN_DURATION = DURATION_MIN_MS / 1000;
+const MAX_DURATION = DURATION_MAX_MS / 1000;
 
 type HistoryState =
   | { status: 'idle' }

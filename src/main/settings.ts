@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
-import type { AppSettings } from '../shared/types';
+import { type AppSettings, DURATION_MAX_MS, DURATION_MIN_MS } from '../shared/types';
 
 const DEFAULT_SETTINGS: AppSettings = {
   characterFile: 'dance.json',
@@ -26,7 +26,7 @@ export function validateSettings(raw: unknown): AppSettings {
 
   let displayDuration = DEFAULT_SETTINGS.displayDuration;
   if (typeof r.displayDuration === 'number' && !Number.isNaN(r.displayDuration)) {
-    displayDuration = Math.min(60000, Math.max(1000, r.displayDuration));
+    displayDuration = Math.min(DURATION_MAX_MS, Math.max(DURATION_MIN_MS, r.displayDuration));
   }
 
   const displayPosition =
