@@ -116,6 +116,7 @@ function loadSettingsPage(win: BrowserWindow, hash?: string): void {
 const OVERLAY_WIN_WIDTH = 300;
 const OVERLAY_WIN_HEIGHT = 280;
 const OVERLAY_MARGIN = 16;
+const DISPLAY_EVENTS = ['display-added', 'display-removed', 'display-metrics-changed'] as const;
 
 function getOverlayPosition(settings: AppSettings): { x: number; y: number } {
   const { x: workAreaX, y: workAreaY, width, height } = screen.getPrimaryDisplay().workArea;
@@ -125,6 +126,13 @@ function getOverlayPosition(settings: AppSettings): { x: number; y: number } {
       ? workAreaY + height - OVERLAY_WIN_HEIGHT - OVERLAY_MARGIN
       : workAreaY + OVERLAY_MARGIN;
   return { x, y };
+}
+
+function updateOverlayPosition(): void {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  const settings = loadSettings();
+  const { x, y } = getOverlayPosition(settings);
+  overlayWindow.setPosition(x, y);
 }
 
 function createOverlayWindow(): BrowserWindow {
@@ -245,6 +253,10 @@ app.whenReady().then(() => {
   overlayWindow = createOverlayWindow();
   createTray();
 
+  for (const event of DISPLAY_EVENTS) {
+    screen.on(event, updateOverlayPosition);
+  }
+
   setWriteErrorCallback((hasError) => {
     settingsWindow?.webContents.send(IPC_CHANNELS.HISTORY_WRITE_ERROR, hasError);
   });
@@ -253,8 +265,7 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, (_event, settings: AppSettings) => {
     const validated = saveSettings(settings);
     overlayWindow?.webContents.send(IPC_CHANNELS.SETTINGS_CHANGED, validated);
-    const { x, y } = getOverlayPosition(validated);
-    overlayWindow?.setPosition(x, y);
+    updateOverlayPosition();
   });
   ipcMain.handle(IPC_CHANNELS.NOTIFICATION_DISPLAYED, (_event, dbId: string) => {
     const pending = pendingNotifications.get(dbId);
@@ -384,6 +395,9 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  for (const event of DISPLAY_EVENTS) {
+    screen.removeListener(event, updateOverlayPosition);
+  }
   monitor?.stop();
   logStream?.end();
 });
