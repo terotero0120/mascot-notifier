@@ -50,18 +50,20 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
 
     try {
       const db = new Database(this.dbPath, { readonly: true, fileMustExist: true });
-
       const since = this.lastCheckTime / 1000 - MacNotificationMonitor.CORE_DATA_EPOCH_OFFSET;
-      const rows = db
-        .prepare(`
-          SELECT rec.rec_id, rec.data, rec.delivered_date
-          FROM record AS rec
-          WHERE rec.delivered_date > ?
-          ORDER BY rec.delivered_date ASC
-        `)
-        .all(since) as Array<{ rec_id: number; data: Buffer; delivered_date: number }>;
-
-      db.close();
+      let rows: Array<{ rec_id: number; data: Buffer; delivered_date: number }>;
+      try {
+        rows = db
+          .prepare(`
+            SELECT rec.rec_id, rec.data, rec.delivered_date
+            FROM record AS rec
+            WHERE rec.delivered_date > ?
+            ORDER BY rec.delivered_date ASC
+          `)
+          .all(since) as typeof rows;
+      } finally {
+        db.close();
+      }
 
       this.emitStartedOnce();
 
@@ -89,7 +91,6 @@ export class MacNotificationMonitor extends BaseNotificationMonitor {
 
       for (const n of results) {
         if (n === null) continue;
-        console.log('New notification:', n.appName, '-', n.sender, '-', n.body);
         this.emit('notification', n);
       }
 
