@@ -21,6 +21,7 @@ export interface HistoryData {
 
 const MAX_ENTRIES = 30;
 let cache: DisplayedEntry[] | null = null;
+let loadFailed = false;
 let writeChain: Promise<void> = Promise.resolve();
 let lastWriteError = false;
 let writeErrorCallback: ((hasError: boolean) => void) | null = null;
@@ -52,11 +53,20 @@ function getEntries(): DisplayedEntry[] {
     try {
       const parsed: unknown = JSON.parse(fs.readFileSync(getHistoryPath(), 'utf-8'));
       cache = Array.isArray(parsed) ? parsed.filter(isValidEntry) : [];
-    } catch {
-      cache = [];
+      loadFailed = false;
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        cache = [];
+        loadFailed = false;
+      } else {
+        // Transient I/O error: keep cache null so next read retries,
+        // and set loadFailed to prevent flushing over existing on-disk data.
+        console.error('Failed to read notification history:', err);
+        loadFailed = true;
+      }
     }
   }
-  return cache;
+  return cache ?? [];
 }
 
 function flushAsync(): void {
@@ -92,7 +102,11 @@ export function addDisplayedNotification(data: {
 }): void {
   if (!data.dbId) return;
 
+  // If reading the history file failed with a non-ENOENT error, skip mutation
+  // to avoid flushing an empty cache over existing on-disk history.
   const entries = getEntries();
+  if (loadFailed) return;
+
   if (entries.some((e) => e.dbId === data.dbId)) return;
 
   const unixMs = data.unixMs ?? Date.now();
@@ -124,6 +138,7 @@ export function getHistoryData(dbIdSet: Set<string>): HistoryData {
 
 export function _resetStateForTesting(): void {
   cache = null;
+  loadFailed = false;
   writeChain = Promise.resolve();
   lastWriteError = false;
   writeErrorCallback = null;
