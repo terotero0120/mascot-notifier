@@ -46,25 +46,27 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
   protected async poll(): Promise<void> {
     try {
       const db = new Database(this.dbPath, { readonly: true, fileMustExist: true });
-
-      const rows = db
-        .prepare(
-          `
+      let rows: Array<{
+        Id: number;
+        ArrivalTime: number;
+        Payload: Buffer | string;
+        PrimaryId: string | null;
+      }>;
+      try {
+        rows = db
+          .prepare(
+            `
           SELECT n.Id, n.ArrivalTime, n.Payload, h.PrimaryId
           FROM Notification n
           LEFT JOIN NotificationHandler h ON n.HandlerId = h.RecordId
           WHERE n.ArrivalTime >= ? AND n.Type = 'toast'
           ORDER BY n.ArrivalTime ASC
         `,
-        )
-        .all(this.lastArrivalTime) as Array<{
-        Id: number;
-        ArrivalTime: number;
-        Payload: Buffer | string;
-        PrimaryId: string | null;
-      }>;
-
-      db.close();
+          )
+          .all(this.lastArrivalTime) as typeof rows;
+      } finally {
+        db.close();
+      }
 
       this.emitStartedOnce();
 
@@ -95,7 +97,6 @@ export class WindowsNotificationMonitor extends BaseNotificationMonitor {
 
       for (const n of results) {
         if (n === null) continue;
-        console.log('New notification:', n.appName, `(${n.rawId})`, '-', n.sender, '-', n.body);
         this.emit('notification', n);
       }
 
