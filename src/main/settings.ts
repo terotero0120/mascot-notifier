@@ -40,9 +40,11 @@ export function validateSettings(raw: unknown): AppSettings {
 export function loadSettings(): AppSettings {
   try {
     const raw = fs.readFileSync(settingsPath(), 'utf-8');
-    const parsed = JSON.parse(raw) as unknown;
-    return validateSettings(parsed);
-  } catch {
+    return validateSettings(JSON.parse(raw) as unknown);
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error('Failed to load settings:', err);
+    }
     return { ...DEFAULT_SETTINGS };
   }
 }
