@@ -116,6 +116,7 @@ function loadSettingsPage(win: BrowserWindow, hash?: string): void {
 const OVERLAY_WIN_WIDTH = 300;
 const OVERLAY_WIN_HEIGHT = 280;
 const OVERLAY_MARGIN = 16;
+const DISPLAY_EVENTS = ['display-added', 'display-removed', 'display-metrics-changed'] as const;
 
 function getOverlayPosition(settings: AppSettings): { x: number; y: number } {
   const { x: workAreaX, y: workAreaY, width, height } = screen.getPrimaryDisplay().workArea;
@@ -252,7 +253,7 @@ app.whenReady().then(() => {
   overlayWindow = createOverlayWindow();
   createTray();
 
-  for (const event of ['display-added', 'display-removed', 'display-metrics-changed'] as const) {
+  for (const event of DISPLAY_EVENTS) {
     screen.on(event, updateOverlayPosition);
   }
 
@@ -394,7 +395,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  for (const event of ['display-added', 'display-removed', 'display-metrics-changed'] as const) {
+  for (const event of DISPLAY_EVENTS) {
     screen.removeListener(event, updateOverlayPosition);
   }
   monitor?.stop();
