@@ -136,9 +136,9 @@ describe('validateSettings', () => {
     });
   });
 
-  it('clamps displayDuration above 60000 to 60000', () => {
+  it('clamps displayDuration above 10000 to 10000', () => {
     expect(validateSettings({ displayDuration: 999999 })).toMatchObject({
-      displayDuration: 60000,
+      displayDuration: 10000,
     });
   });
 
