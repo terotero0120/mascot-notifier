@@ -259,8 +259,8 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC_CHANNELS.NOTIFICATION_DISPLAYED, (_event, dbId: string) => {
     const pending = pendingNotifications.get(dbId);
     if (pending) {
-      addDisplayedNotification(pending);
-      pendingNotifications.delete(dbId);
+      const recorded = addDisplayedNotification(pending);
+      if (recorded) pendingNotifications.delete(dbId);
     }
   });
   ipcMain.handle(

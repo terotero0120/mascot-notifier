@@ -161,4 +161,42 @@ describe('notificationHistory', () => {
       expect(getHistoryData(new Set()).writeError).toBe(false);
     });
   });
+
+  describe('transient read error guard', () => {
+    it('returns false and does not write when readFileSync throws a non-ENOENT error', async () => {
+      readFileSyncMock.mockImplementation(() => {
+        throw Object.assign(new Error('EPERM'), { code: 'EPERM' });
+      });
+      const recorded = addDisplayedNotification({ dbId: '1', sender: 'Alice', body: 'Hello' });
+      await flushNotificationHistory();
+      expect(recorded).toBe(false);
+      expect(writeFileMock).not.toHaveBeenCalled();
+    });
+
+    it('self-heals and records after a transient read error resolves', async () => {
+      readFileSyncMock
+        .mockImplementationOnce(() => {
+          throw Object.assign(new Error('EPERM'), { code: 'EPERM' });
+        })
+        .mockImplementation(() => {
+          throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+        });
+      const first = addDisplayedNotification({ dbId: '1', sender: 'Alice', body: 'Hello' });
+      expect(first).toBe(false);
+
+      // cache is still null after transient error, so next call retries the read
+      const second = addDisplayedNotification({ dbId: '1', sender: 'Alice', body: 'Hello' });
+      await flushNotificationHistory();
+      expect(second).toBe(true);
+      expect(writeFileMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('self-heals when history file contains malformed JSON', async () => {
+      readFileSyncMock.mockReturnValue('{not valid json');
+      const recorded = addDisplayedNotification({ dbId: '1', sender: 'Alice', body: 'Hello' });
+      await flushNotificationHistory();
+      expect(recorded).toBe(true);
+      expect(writeFileMock).toHaveBeenCalledTimes(1);
+    });
+  });
 });

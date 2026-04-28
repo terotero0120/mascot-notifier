@@ -50,10 +50,9 @@ function isValidEntry(e: unknown): e is DisplayedEntry {
 
 function getEntries(): DisplayedEntry[] {
   if (cache === null) {
+    let raw: string;
     try {
-      const parsed: unknown = JSON.parse(fs.readFileSync(getHistoryPath(), 'utf-8'));
-      cache = Array.isArray(parsed) ? parsed.filter(isValidEntry) : [];
-      loadFailed = false;
+      raw = fs.readFileSync(getHistoryPath(), 'utf-8');
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         cache = [];
@@ -64,6 +63,17 @@ function getEntries(): DisplayedEntry[] {
         console.error('Failed to read notification history:', err);
         loadFailed = true;
       }
+      return cache ?? [];
+    }
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      cache = Array.isArray(parsed) ? parsed.filter(isValidEntry) : [];
+      loadFailed = false;
+    } catch (err) {
+      // Malformed JSON: reset to empty so history recording can self-heal.
+      console.error('Malformed notification history JSON, resetting:', err);
+      cache = [];
+      loadFailed = false;
     }
   }
   return cache ?? [];
@@ -99,13 +109,13 @@ export function addDisplayedNotification(data: {
   body: string;
   appName?: string;
   rawId?: string;
-}): void {
-  if (!data.dbId) return;
+}): boolean {
+  if (!data.dbId) return false;
 
   const entries = getEntries();
-  if (loadFailed) return;
+  if (loadFailed) return false;
 
-  if (entries.some((e) => e.dbId === data.dbId)) return;
+  if (entries.some((e) => e.dbId === data.dbId)) return true;
 
   const unixMs = data.unixMs ?? Date.now();
   entries.unshift({
@@ -123,6 +133,7 @@ export function addDisplayedNotification(data: {
   }
 
   flushAsync();
+  return true;
 }
 
 export function getHistoryData(dbIdSet: Set<string>): HistoryData {
