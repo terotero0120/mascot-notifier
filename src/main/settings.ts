@@ -1,8 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
-import type { AppSettings } from '../shared/types';
-import { DURATION_MAX_MS, DURATION_MIN_MS } from '../shared/types';
+import { type AppSettings, DURATION_MAX_MS, DURATION_MIN_MS } from '../shared/types';
 
 const DEFAULT_SETTINGS: AppSettings = {
   characterFile: 'dance.json',
