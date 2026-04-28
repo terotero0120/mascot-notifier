@@ -1,3 +1,8 @@
+/** displayDuration の最小値（ミリ秒） */
+export const DURATION_MIN_MS = 1000;
+/** displayDuration の最大値（ミリ秒） */
+export const DURATION_MAX_MS = 10000;
+
 export interface AppSettings {
   characterFile: string;
   displayDuration: number;
