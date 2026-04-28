@@ -259,8 +259,16 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC_CHANNELS.NOTIFICATION_DISPLAYED, (_event, dbId: string) => {
     const pending = pendingNotifications.get(dbId);
     if (pending) {
-      addDisplayedNotification(pending);
-      pendingNotifications.delete(dbId);
+      if (addDisplayedNotification(pending)) {
+        pendingNotifications.delete(dbId);
+      } else {
+        // Transient read failure: retry once after a short delay so the entry
+        // is recorded after the filesystem recovers.
+        setTimeout(() => {
+          const still = pendingNotifications.get(dbId);
+          if (still && addDisplayedNotification(still)) pendingNotifications.delete(dbId);
+        }, 5000);
+      }
     }
   });
   ipcMain.handle(

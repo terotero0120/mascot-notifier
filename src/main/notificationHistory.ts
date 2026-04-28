@@ -21,6 +21,7 @@ export interface HistoryData {
 
 const MAX_ENTRIES = 30;
 let cache: DisplayedEntry[] | null = null;
+let loadFailed = false;
 let writeChain: Promise<void> = Promise.resolve();
 let lastWriteError = false;
 let writeErrorCallback: ((hasError: boolean) => void) | null = null;
@@ -49,14 +50,33 @@ function isValidEntry(e: unknown): e is DisplayedEntry {
 
 function getEntries(): DisplayedEntry[] {
   if (cache === null) {
+    let raw: string;
     try {
-      const parsed: unknown = JSON.parse(fs.readFileSync(getHistoryPath(), 'utf-8'));
+      raw = fs.readFileSync(getHistoryPath(), 'utf-8');
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        cache = [];
+        loadFailed = false;
+      } else {
+        // Transient I/O error: keep cache null so next read retries,
+        // and set loadFailed to prevent flushing over existing on-disk data.
+        console.error('Failed to read notification history:', err);
+        loadFailed = true;
+      }
+      return cache ?? [];
+    }
+    try {
+      const parsed: unknown = JSON.parse(raw);
       cache = Array.isArray(parsed) ? parsed.filter(isValidEntry) : [];
-    } catch {
+      loadFailed = false;
+    } catch (err) {
+      // Malformed JSON: reset to empty so history recording can self-heal.
+      console.error('Malformed notification history JSON, resetting:', err);
       cache = [];
+      loadFailed = false;
     }
   }
-  return cache;
+  return cache ?? [];
 }
 
 function flushAsync(): void {
@@ -89,11 +109,13 @@ export function addDisplayedNotification(data: {
   body: string;
   appName?: string;
   rawId?: string;
-}): void {
-  if (!data.dbId) return;
+}): boolean {
+  if (!data.dbId) return false;
 
   const entries = getEntries();
-  if (entries.some((e) => e.dbId === data.dbId)) return;
+  if (loadFailed) return false;
+
+  if (entries.some((e) => e.dbId === data.dbId)) return true;
 
   const unixMs = data.unixMs ?? Date.now();
   entries.unshift({
@@ -111,6 +133,7 @@ export function addDisplayedNotification(data: {
   }
 
   flushAsync();
+  return true;
 }
 
 export function getHistoryData(dbIdSet: Set<string>): HistoryData {
@@ -124,6 +147,7 @@ export function getHistoryData(dbIdSet: Set<string>): HistoryData {
 
 export function _resetStateForTesting(): void {
   cache = null;
+  loadFailed = false;
   writeChain = Promise.resolve();
   lastWriteError = false;
   writeErrorCallback = null;
