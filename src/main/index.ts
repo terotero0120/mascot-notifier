@@ -94,13 +94,22 @@ const MAX_PENDING_NOTIFICATIONS = 50;
 const pendingNotifications = new Map<string, NotificationData>();
 
 const preloadPath = path.join(__dirname, '../preload/index.js');
-const rendererHtmlPath = path.join(__dirname, '../renderer/index.html');
+const overlayHtmlPath = path.join(__dirname, '../renderer/overlay.html');
+const settingsHtmlPath = path.join(__dirname, '../renderer/settings.html');
 
-function loadRenderer(win: BrowserWindow, hash?: string): void {
+function loadOverlay(win: BrowserWindow): void {
   if (process.env.ELECTRON_RENDERER_URL) {
-    win.loadURL(`${process.env.ELECTRON_RENDERER_URL}${hash ? `#${hash}` : ''}`);
+    win.loadURL(`${process.env.ELECTRON_RENDERER_URL}/overlay.html`);
   } else {
-    win.loadFile(rendererHtmlPath, hash ? { hash } : undefined);
+    win.loadFile(overlayHtmlPath);
+  }
+}
+
+function loadSettingsPage(win: BrowserWindow, hash?: string): void {
+  if (process.env.ELECTRON_RENDERER_URL) {
+    win.loadURL(`${process.env.ELECTRON_RENDERER_URL}/settings.html${hash ? `#${hash}` : ''}`);
+  } else {
+    win.loadFile(settingsHtmlPath, hash ? { hash } : undefined);
   }
 }
 
@@ -147,7 +156,7 @@ function createOverlayWindow(): BrowserWindow {
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   }
 
-  loadRenderer(win);
+  loadOverlay(win);
 
   return win;
 }
@@ -172,7 +181,7 @@ function createSettingsWindow(initialTab: SettingsTab = 'settings'): void {
     },
   });
 
-  loadRenderer(settingsWindow, initialTab);
+  loadSettingsPage(settingsWindow, initialTab);
 
   settingsWindow.on('closed', () => {
     settingsWindow = null;
