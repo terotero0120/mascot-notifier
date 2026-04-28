@@ -127,6 +127,13 @@ function getOverlayPosition(settings: AppSettings): { x: number; y: number } {
   return { x, y };
 }
 
+function updateOverlayPosition(): void {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  const settings = loadSettings();
+  const { x, y } = getOverlayPosition(settings);
+  overlayWindow.setPosition(x, y);
+}
+
 function createOverlayWindow(): BrowserWindow {
   const settings = loadSettings();
   const { x, y } = getOverlayPosition(settings);
@@ -245,6 +252,10 @@ app.whenReady().then(() => {
   overlayWindow = createOverlayWindow();
   createTray();
 
+  for (const event of ['display-added', 'display-removed', 'display-metrics-changed'] as const) {
+    screen.on(event, updateOverlayPosition);
+  }
+
   setWriteErrorCallback((hasError) => {
     settingsWindow?.webContents.send(IPC_CHANNELS.HISTORY_WRITE_ERROR, hasError);
   });
@@ -253,8 +264,7 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, (_event, settings: AppSettings) => {
     const validated = saveSettings(settings);
     overlayWindow?.webContents.send(IPC_CHANNELS.SETTINGS_CHANGED, validated);
-    const { x, y } = getOverlayPosition(validated);
-    overlayWindow?.setPosition(x, y);
+    updateOverlayPosition();
   });
   ipcMain.handle(IPC_CHANNELS.NOTIFICATION_DISPLAYED, (_event, dbId: string) => {
     const pending = pendingNotifications.get(dbId);
@@ -384,6 +394,9 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  for (const event of ['display-added', 'display-removed', 'display-metrics-changed'] as const) {
+    screen.removeListener(event, updateOverlayPosition);
+  }
   monitor?.stop();
   logStream?.end();
 });
