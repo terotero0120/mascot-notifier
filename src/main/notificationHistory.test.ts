@@ -98,6 +98,50 @@ describe('notificationHistory', () => {
     });
   });
 
+  describe('getEntries shape validation', () => {
+    it('falls back to empty array when parsed value is not an array', () => {
+      readFileSyncMock.mockReturnValue('{}');
+      const data = getHistoryData(new Set());
+      expect(data.displayedIds.size).toBe(0);
+      expect(data.historyOnly).toHaveLength(0);
+    });
+
+    it('filters out null elements', () => {
+      readFileSyncMock.mockReturnValue('[null]');
+      const data = getHistoryData(new Set());
+      expect(data.displayedIds.size).toBe(0);
+    });
+
+    it('filters out elements missing dbId', () => {
+      readFileSyncMock.mockReturnValue('[{"sender":"Alice","body":"Hi"}]');
+      const data = getHistoryData(new Set());
+      expect(data.displayedIds.size).toBe(0);
+    });
+
+    it('filters out elements with non-string dbId', () => {
+      readFileSyncMock.mockReturnValue('[{"dbId":123,"sender":"Alice","body":"Hi"}]');
+      const data = getHistoryData(new Set());
+      expect(data.displayedIds.size).toBe(0);
+    });
+
+    it('filters out entries with dbId but missing required numeric unixMs', () => {
+      readFileSyncMock.mockReturnValue(
+        '[{"dbId":"abc","sender":"Alice","body":"Hi","timestamp":"","appName":"","rawId":""}]',
+      );
+      const data = getHistoryData(new Set());
+      expect(data.displayedIds.size).toBe(0);
+    });
+
+    it('preserves valid entries while filtering invalid ones', () => {
+      readFileSyncMock.mockReturnValue(
+        '[{"dbId":"ok","sender":"Alice","body":"Hi","unixMs":0,"timestamp":"","appName":"","rawId":""},null,{"sender":"bad"}]',
+      );
+      const data = getHistoryData(new Set());
+      expect(data.displayedIds.size).toBe(1);
+      expect(data.displayedIds.has('ok')).toBe(true);
+    });
+  });
+
   describe('writeError flag', () => {
     it('sets writeError to true when writeFile throws', async () => {
       writeFileMock.mockRejectedValue(new Error('disk full'));

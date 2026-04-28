@@ -361,7 +361,7 @@ export const SettingsApp: React.FC<SettingsAppProps> = ({ initialTab = 'settings
             {historyState.status === 'success' &&
               historyState.records.map((record) => (
                 <div
-                  key={record.unixMs}
+                  key={record.id}
                   style={{
                     padding: '12px 14px',
                     marginBottom: 8,

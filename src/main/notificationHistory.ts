@@ -33,10 +33,25 @@ function getHistoryPath(): string {
   return path.join(app.getPath('userData'), 'displayed-notifications.json');
 }
 
+function isValidEntry(e: unknown): e is DisplayedEntry {
+  if (e == null || typeof e !== 'object') return false;
+  const r = e as Record<string, unknown>;
+  return (
+    typeof r.dbId === 'string' &&
+    typeof r.unixMs === 'number' &&
+    typeof r.timestamp === 'string' &&
+    typeof r.sender === 'string' &&
+    typeof r.body === 'string' &&
+    typeof r.appName === 'string' &&
+    typeof r.rawId === 'string'
+  );
+}
+
 function getEntries(): DisplayedEntry[] {
   if (cache === null) {
     try {
-      cache = JSON.parse(fs.readFileSync(getHistoryPath(), 'utf-8')) as DisplayedEntry[];
+      const parsed: unknown = JSON.parse(fs.readFileSync(getHistoryPath(), 'utf-8'));
+      cache = Array.isArray(parsed) ? parsed.filter(isValidEntry) : [];
     } catch {
       cache = [];
     }
